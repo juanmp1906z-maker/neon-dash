@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>NEON DASH - Endless Runner</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  :root {
+    --bg: #0a0a12;
+    --fg: #e0e8ff;
+    --accent: #00ffaa;
+    --accent2: #ff2266;
+    --accent3: #ffaa00;
+    --card: rgba(15,15,30,0.9);
+    --border: rgba(0,255,170,0.15);
+    --glow: 0 0 20px rgba(0,255,170,0.3);
+    --muted: rgba(224,232,255,0.35);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Rajdhani', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(0,255,170,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(255,34,102,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(255,170,0,0.03) 0%, transparent 50%);
+    animation: bgDrift 20s ease-in-out infinite alternate;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  @keyframes bgDrift {
+    0% { transform: translate(0,0) rotate(0deg); }
+    100% { transform: translate(-3%,2%) rotate(3deg); }
+  }
+
+  #gameWrapper {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 900px;
+    aspect-ratio: 16/9;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--glow), 0 0 60px rgba(0,0,0,0.6), inset 0 0 60px rgba(0,0,0,0.3);
+    background: #060610;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: auto;
+  }
+
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    z-index: 10;
+    font-family: 'Orbitron', monospace;
+  }
+
+  .hud-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .hud-label { font-size: 10px; font-weight: 400; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .hud-value { font-size: 22px; font-weight: 900; color: var(--accent); text-shadow: 0 0 12px rgba(0,255,170,0.5); }
+  .hud-value.coins { color: var(--accent3); text-shadow: 0 0 12px rgba(255,170,0,0.5); }
+  .hud-value.best { color: var(--accent2); text-shadow: 0 0 12px rgba(255,34,102,0.5); font-size: 16px; }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6,6,16,0.94);
+    backdrop-filter: blur(10px);
+    z-index: 20;
+    transition: opacity 0.4s ease;
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+
+  .overlay h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(28px, 5.5vw, 52px);
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(0,255,170,0.4), 0 0 60px rgba(0,255,170,0.15);
+    margin-bottom: 6px;
+    letter-spacing: 4px;
+  }
+
+  .overlay h1 span { color: var(--accent2); text-shadow: 0 0 30px rgba(255,34,102,0.4); }
+
+  .overlay .subtitle {
+    font-size: clamp(13px, 2.2vw, 17px);
+    color: var(--muted);
+    margin-bottom: 24px;
+    font-weight: 300;
+    letter-spacing: 3px;
+  }
+
+  .overlay .final-score {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(36px, 7vw, 64px);
+    font-weight: 900;
+    color: var(--fg);
+    margin: 8px 0 2px;
+  }
+
+  .overlay .score-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    margin-bottom: 16px;
+  }
+
+  .overlay .stats-row {
+    display: flex;
+    gap: 28px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .overlay .stat { text-align: center; }
+  .overlay .stat-val { font-family: 'Orbitron', monospace; font-size: 18px; font-weight: 700; color: var(--accent3); }
+  .overlay .stat-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+
+  .btn {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(11px, 1.8vw, 14px);
+    font-weight: 700;
+    padding: 12px 32px;
+    border: 2px solid var(--accent);
+    background: rgba(0,255,170,0.08);
+    color: var(--accent);
+    border-radius: 8px;
+    cursor: pointer;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+    pointer-events: all;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,255,170,0.15), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .btn:hover {
+    background: rgba(0,255,170,0.18);
+    box-shadow: 0 0 30px rgba(0,255,170,0.25), inset 0 0 30px rgba(0,255,170,0.05);
+    transform: translateY(-2px);
+  }
+
+  .btn:hover::before { opacity: 1; }
+  .btn:active { transform: translateY(0); }
+
+  .btn.secondary {
+    border-color: var(--accent3);
+    color: var(--accent3);
+    background: rgba(255,170,0,0.06);
+  }
+
+  .btn.secondary:hover {
+    background: rgba(255,170,0,0.15);
+    box-shadow: 0 0 30px rgba(255,170,0,0.2);
+  }
+
+  .btn.danger {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    background: rgba(255,34,102,0.06);
+    font-size: 10px;
+    padding: 8px 18px;
+  }
+
+  .btn.danger:hover {
+    background: rgba(255,34,102,0.15);
+    box-shadow: 0 0 20px rgba(255,34,102,0.2);
+  }
+
+  .controls-hint {
+    margin-top: 16px;
+    font-size: 11px;
+    color: rgba(224,232,255,0.25);
+    text-align: center;
+    line-height: 1.8;
+    letter-spacing: 1px;
+  }
+
+  .controls-hint kbd {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid rgba(224,232,255,0.15);
+    border-radius: 4px;
+    background: rgba(224,232,255,0.04);
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    color: rgba(224,232,255,0.4);
+    margin: 0 2px;
+  }
+
+  /* ===== PANTALLA HISTORIAL ===== */
+  #historyScreen .history-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    width: 100%;
+    max-width: 700px;
+  }
+
+  #historyScreen .history-header h1 { margin: 0; font-size: clamp(20px, 4vw, 30px); }
+
+  .back-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--border);
+    background: rgba(0,255,170,0.05);
+    color: var(--accent);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .back-btn:hover { background: rgba(0,255,170,0.15); }
+
+  .global-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    width: 100%;
+    max-width: 700px;
+    margin-bottom: 18px;
+  }
+
+  .gs-card {
+    background: rgba(0,255,170,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+
+  .gs-card .gs-val {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(16px, 3vw, 22px);
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(0,255,170,0.3);
+  }
+
+  .gs-card .gs-lbl {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 2px;
+  }
+
+  .gs-card.gold .gs-val { color: var(--accent3); text-shadow: 0 0 10px rgba(255,170,0,0.3); }
+  .gs-card.pink .gs-val { color: var(--accent2); text-shadow: 0 0 10px rgba(255,34,102,0.3); }
+
+  .history-table-wrap {
+    width: 100%;
+    max-width: 700px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(0,0,0,0.3);
+    margin-bottom: 14px;
+  }
+
+  .history-table-wrap::-webkit-scrollbar { width: 5px; }
+  .history-table-wrap::-webkit-scrollbar-track { background: transparent; }
+  .history-table-wrap::-webkit-scrollbar-thumb { background: rgba(0,255,170,0.2); border-radius: 4px; }
+
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    font-family: 'Rajdhani', sans-serif;
+  }
+
+  .history-table thead { position: sticky; top: 0; z-index: 2; }
+
+  .history-table th {
+    background: rgba(0,255,170,0.08);
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 8px 6px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .history-table td {
+    padding: 7px 6px;
+    text-align: center;
+    color: var(--fg);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .history-table tr:hover td { background: rgba(0,255,170,0.03); }
+
+  .history-table .best-row td { color: var(--accent3); font-weight: 700; }
+
+  .history-table .rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    font-weight: 900;
+  }
+
+  .rank-1 { background: rgba(255,170,0,0.2); color: #ffaa00; border: 1px solid rgba(255,170,0,0.4); }
+  .rank-2 { background: rgba(192,192,192,0.15); color: #c0c0c0; border: 1px solid rgba(192,192,192,0.3); }
+  .rank-3 { background: rgba(205,127,50,0.15); color: #cd7f32; border: 1px solid rgba(205,127,50,0.3); }
+  .rank-n { background: rgba(255,255,255,0.04); color: var(--muted); border: 1px solid rgba(255,255,255,0.06); }
+
+  .empty-history {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 30px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  .db-status {
+    font-size: 10px;
+    color: rgba(0,255,170,0.4);
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .db-status .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  #newRecord {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(16px, 3vw, 26px);
+    font-weight: 900;
+    color: var(--accent3);
+    text-shadow: 0 0 30px rgba(255,170,0,0.6);
+    letter-spacing: 6px;
+    z-index: 25;
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  #newRecord.show { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+
+  .save-flash {
+    position: absolute;
+    bottom: 10px;
+    right: 14px;
+    font-size: 10px;
+    color: rgba(0,255,170,0.5);
+    font-family: 'Orbitron', monospace;
+    letter-spacing: 2px;
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .save-flash.show { opacity: 1; }
+
+  @media (max-width: 600px) {
+    #gameWrapper { border-radius: 0; border: none; max-width: 100%; height: 100vh; aspect-ratio: unset; }
+    #hud { padding: 8px 12px; }
+    .hud-value { font-size: 17px; }
+    .hud-value.best { font-size: 12px; }
+    .global-stats { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .gs-card { padding: 8px 4px; }
+    .history-table { font-size: 10px; }
+    .history-table th, .history-table td { padding: 5px 3px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="gameWrapper">
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="hud" class="hidden">
+    <div class="hud-item">
+      <span class="hud-label">Puntos</span>
+      <span class="hud-value" id="hudScore">0</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Monedas</span>
+      <span class="hud-value coins" id="hudCoins">0</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Mejor</span>
+      <span class="hud-value best" id="hudBest">0</span>
+    </div>
+  </div>
+
+  <!-- Inicio -->
+  <div class="overlay" id="startScreen">
+    <h1>NEON <span>DASH</span></h1>
+    <p class="subtitle">Corre. Salta. Sobrevive.</p>
+    <div class="btn-row">
+      <button class="btn" id="btnStart">JUGAR</button>
+      <button class="btn secondary" id="btnHistory"><i class="fa-solid fa-database"></i>&nbsp; ESTADISTICAS</button>
+    </div>
+    <div class="controls-hint">
+      <kbd>ESPACIO</kbd> o <kbd>TOQUE</kbd> para saltar &mdash; Doble salto disponible
+    </div>
+  </div>
+
+  <!-- Game Over -->
+  <div class="overlay hidden" id="gameOverScreen">
+    <h1>FIN DEL <span>JUEGO</span></h1>
+    <div class="score-label">Puntuacion</div>
+    <div class="final-score" id="finalScore">0</div>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-val" id="finalCoins">0</div><div class="stat-lbl">Monedas</div></div>
+      <div class="stat"><div class="stat-val" id="finalBest">0</div><div class="stat-lbl">Mejor marca</div></div>
+      <div class="stat"><div class="stat-val" id="finalSpeed">0</div><div class="stat-lbl">Vel. max</div></div>
+      <div class="stat"><div class="stat-val" id="finalTime">0s</div><div class="stat-lbl">Tiempo</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btnRestart">REINTENTAR</button>
+      <button class="btn secondary" id="btnHistory2"><i class="fa-solid fa-chart-line"></i>&nbsp; HISTORIAL</button>
+    </div>
+    <div class="controls-hint">
+      <kbd>ESPACIO</kbd> o <kbd>TOQUE</kbd> para reiniciar
+    </div>
+  </div>
+
+  <!-- Historial / Base de datos -->
+  <div class="overlay hidden" id="historyScreen">
+    <div class="history-header">
+      <button class="back-btn" id="btnBack" aria-label="Volver"><i class="fa-solid fa-arrow-left"></i></button>
+      <h1><span style="color:var(--accent3)"><i class="fa-solid fa-database"></i></span> BASE DE DATOS</h1>
+    </div>
+    <div class="db-status"><span class="dot"></span> IndexedDB activa &mdash; datos persistentes en navegador</div>
+    <div class="global-stats" id="globalStats">
+      <div class="gs-card"><div class="gs-val" id="gsTotalGames">0</div><div class="gs-lbl">Partidas</div></div>
+      <div class="gs-card pink"><div class="gs-val" id="gsBestScore">0</div><div class="gs-lbl">Mejor punt.</div></div>
+      <div class="gs-card gold"><div class="gs-val" id="gsTotalCoins">0</div><div class="gs-lbl">Monedas total</div></div>
+      <div class="gs-card"><div class="gs-val" id="gsAvgScore">0</div><div class="gs-lbl">Promedio</div></div>
+      <div class="gs-card"><div class="gs-val" id="gsTotalTime">0s</div><div class="gs-lbl">Tiempo jugado</div></div>
+      <div class="gs-card gold"><div class="gs-val" id="gsTotalDist">0</div><div class="gs-lbl">Distancia total</div></div>
+    </div>
+    <div class="history-table-wrap" id="historyTableWrap">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Puntos</th>
+            <th>Monedas</th>
+            <th>Vel.Max</th>
+            <th>Tiempo</th>
+            <th>Dist.</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+    <div class="btn-row">
+      <button class="btn danger" id="btnClearDB"><i class="fa-solid fa-trash"></i>&nbsp; BORRAR TODOS LOS DATOS</button>
+      <button class="btn secondary" id="btnExportDB"><i class="fa-solid fa-download"></i>&nbsp; EXPORTAR JSON</button>
+    </div>
+  </div>
+
+  <div id="newRecord">NUEVO RECORD</div>
+  <div class="save-flash" id="saveFlash"><i class="fa-solid fa-floppy-disk"></i> PARTIDA GUARDADA</div>
+</div>
+
+<script>
+// ============================================
+// BASE DE DATOS IndexedDB
+// ============================================
+
+const DB_NAME = 'NeonDashDB';
+const DB_VERSION = 1;
+const STORE_GAMES = 'games';
+const STORE_STATS = 'globalStats';
+
+let db = null;
+
+// Abrir/crear la base de datos
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (e) => {
+      const database = e.target.result;
+
+      // Store de partidas individuales
+      if (!database.objectStoreNames.contains(STORE_GAMES)) {
+        const gameStore = database.createObjectStore(STORE_GAMES, { keyPath: 'id', autoIncrement: true });
+        gameStore.createIndex('date', 'date', { unique: false });
+        gameStore.createIndex('score', 'score', { unique: false });
+      }
+
+      // Store de estadísticas globales (un solo registro, keyPath fijo)
+      if (!database.objectStoreNames.contains(STORE_STATS)) {
+        database.createObjectStore(STORE_STATS, { keyPath: 'key' });
+      }
+    };
+
+    request.onsuccess = (e) => {
+      db = e.target.result;
+      // Inicializar stats globales si no existen
+      initGlobalStats();
+      resolve(db);
+    };
+
+    request.onerror = (e) => {
+      console.error('Error abriendo IndexedDB:', e.target.error);
+      reject(e.target.error);
+    };
+  });
+}
+
+// Inicializar estadísticas globales
+function initGlobalStats() {
+  const tx = db.transaction(STORE_STATS, 'readwrite');
+  const store = tx.objectStore(STORE_STATS);
+  const getReq = store.get('main');
+
+  getReq.onsuccess = () => {
+    if (!getReq.result) {
+      store.put({
+        key: 'main',
+        totalGames: 0,
+        totalCoins: 0,
+        totalScore: 0,
+        bestScore: 0,
+        totalTime: 0,
+        totalDistance: 0
+      });
+    }
+  };
+}
+
+// Guardar una partida
+function saveGame(gameData) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_GAMES, STORE_STATS], 'readwrite');
+
+    // Guardar partida individual
+    const gameStore = tx.objectStore(STORE_GAMES);
+    const addReq = gameStore.add(gameData);
+
+    // Actualizar estadísticas globales
+    const statsStore = tx.objectStore(STORE_STATS);
+    const getStats = statsStore.get('main');
+
+    getStats.onsuccess = () => {
+      const stats = getStats.result;
+      stats.totalGames++;
+      stats.totalCoins += gameData.coins;
+      stats.totalScore += gameData.score;
+      stats.totalTime += gameData.duration;
+      stats.totalDistance += gameData.distance;
+      if (gameData.score > stats.bestScore) {
+        stats.bestScore = gameData.score;
+      }
+      statsStore.put(stats);
+    };
+
+    tx.oncomplete = () => {
+      // Mostrar indicador de guardado
+      showSaveFlash();
+      resolve();
+    };
+
+    tx.onerror = (e) => {
+      console.error('Error guardando partida:', e.target.error);
+      reject(e.target.error);
+    };
+  });
+}
+
+// Obtener todas las partidas (ordenadas por fecha, más reciente primero)
+function getAllGames() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_GAMES, 'readonly');
+    const store = tx.objectStore(STORE_GAMES);
+    const req = store.getAll();
+
+    req.onsuccess = () => {
+      // Ordenar por id descendente (más reciente primero)
+      const games = req.result.sort((a, b) => b.id - a.id);
+      resolve(games);
+    };
+
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+// Obtener estadísticas globales
+function getGlobalStats() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_STATS, 'readonly');
+    const store = tx.objectStore(STORE_STATS);
+    const req = store.get('main');
+
+    req.onsuccess = () => resolve(req.result || {});
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+// Borrar toda la base de datos
+function clearAllData() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_GAMES, STORE_STATS], 'readwrite');
+
+    tx.objectStore(STORE_GAMES).clear();
+    // Reiniciar stats
+    tx.objectStore(STORE_STATS).put({
+      key: 'main',
+      totalGames: 0,
+      totalCoins: 0,
+      totalScore: 0,
+      bestScore: 0,
+      totalTime: 0,
+      totalDistance: 0
+    });
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = (e) => reject(e.target.error);
+  });
+}
+
+// Exportar datos como JSON
+function exportDataJSON() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const games = await getAllGames();
+      const stats = await getGlobalStats();
+      const data = { exportDate: new Date().toISOString(), globalStats: stats, games };
+      resolve(JSON.stringify(data, null, 2));
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+// Flash de guardado
+function showSaveFlash() {
+  const el = document.getElementById('saveFlash');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+// ============================================
+// JUEGO
+// ============================================
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const hud = document.getElementById('hud');
+const hudScore = document.getElementById('hudScore');
+const hudCoins = document.getElementById('hudCoins');
+const hudBest = document.getElementById('hudBest');
+const startScreen = document.getElementById('startScreen');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const historyScreen = document.getElementById('historyScreen');
+const finalScore = document.getElementById('finalScore');
+const finalCoins = document.getElementById('finalCoins');
+const finalBest = document.getElementById('finalBest');
+const finalSpeed = document.getElementById('finalSpeed');
+const finalTime = document.getElementById('finalTime');
+const newRecordEl = document.getElementById('newRecord');
+
+// Constantes
+const GRAVITY = 0.65;
+const JUMP_FORCE = -13;
+const DOUBLE_JUMP_FORCE = -11;
+const BASE_SPEED = 5;
+const MAX_SPEED = 14;
+const SPEED_INCREMENT = 0.003;
+const GROUND_HEIGHT_RATIO = 0.22;
+const PLAYER_WIDTH = 30;
+const PLAYER_HEIGHT = 40;
+
+// Estado
+let W, H, groundY;
+let gameState = 'start';
+let score = 0;
+let coins = 0;
+let bestScore = 0;
+let speed = BASE_SPEED;
+let maxSpeedReached = BASE_SPEED;
+let frameCount = 0;
+let gameStartTime = 0;
+let gameDuration = 0;
+let totalDistance = 0;
+let shakeX = 0, shakeY = 0;
+let shakeDuration = 0;
+let shakeIntensity = 6;
+
+let player = {
+  x: 0, y: 0, vy: 0,
+  width: PLAYER_WIDTH, height: PLAYER_HEIGHT,
+  onGround: true, jumps: 0, maxJumps: 2,
+  trail: [], runTimer: 0, alive: true
+};
+
+let obstacles = [];
+let coinItems = [];
+let particles = [];
+let bgStars = [];
+let bgBuildings = [];
+let speedLines = [];
+let obstacleTimer = 0;
+
+// Audio
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playSound(type) {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  switch(type) {
+    case 'jump':
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      osc.start(now); osc.stop(now + 0.15);
+      break;
+    case 'doubleJump':
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.12);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      osc.start(now); osc.stop(now + 0.15);
+      break;
+    case 'coin':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(1100, now + 0.05);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      osc.start(now); osc.stop(now + 0.15);
+      break;
+    case 'hit':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc.start(now); osc.stop(now + 0.35);
+      break;
+    case 'score':
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523, now);
+      osc.frequency.setValueAtTime(659, now + 0.08);
+      osc.frequency.setValueAtTime(784, now + 0.16);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc.start(now); osc.stop(now + 0.3);
+      break;
+  }
+}
+
+// Redimensionar
+function resize() {
+  canvas.width = 900;
+  canvas.height = 506;
+  W = canvas.width;
+  H = canvas.height;
+  groundY = H * (1 - GROUND_HEIGHT_RATIO);
+  player.x = W * 0.15;
+  if (gameState === 'start') player.y = groundY - player.height;
+}
+
+// Iniciar fondo
+function initBackground() {
+  bgStars = [];
+  for (let i = 0; i < 80; i++) {
+    bgStars.push({
+      x: Math.random() * W,
+      y: Math.random() * (groundY - 40),
+      size: Math.random() * 2 + 0.5,
+      brightness: Math.random() * 0.5 + 0.2,
+      twinkleSpeed: Math.random() * 0.03 + 0.01
+    });
+  }
+  bgBuildings = [];
+  let bx = 0;
+  while (bx < W + 200) {
+    const bw = Math.random() * 60 + 30;
+    const bh = Math.random() * 120 + 40;
+    bgBuildings.push({
+      x: bx, width: bw, height: bh,
+      windows: Math.floor(Math.random() * 8) + 2,
+      layer: Math.random() < 0.5 ? 0 : 1,
+      color: Math.random() < 0.5 ? 'rgba(0,255,170,0.03)' : 'rgba(255,34,102,0.03)'
+    });
+    bx += bw + Math.random() * 20 + 5;
+  }
+}
+
+function resetGame() {
+  score = 0; coins = 0;
+  speed = BASE_SPEED; maxSpeedReached = BASE_SPEED;
+  frameCount = 0; obstacleTimer = 0;
+  shakeDuration = 0; totalDistance = 0;
+  gameStartTime = Date.now(); gameDuration = 0;
+
+  player.y = groundY - player.height;
+  player.vy = 0; player.onGround = true;
+  player.jumps = 0; player.trail = [];
+  player.runTimer = 0; player.alive = true;
+
+  obstacles = []; coinItems = [];
+  particles = []; speedLines = [];
+  initBackground();
+  updateHUD();
+}
+
+function updateHUD() {
+  hudScore.textContent = score;
+  hudCoins.textContent = coins;
+  hudBest.textContent = bestScore;
+}
+
+// Obstáculos
+function spawnObstacle() {
+  const minGap = Math.max(55, 115 - speed * 5);
+  obstacleTimer++;
+  if (obstacleTimer < minGap) return;
+  obstacleTimer = 0;
+
+  const rand = Math.random();
+  let obs;
+
+  if (rand < 0.4) {
+    const h = Math.random() * 25 + 25;
+    obs = { x: W + 50, y: groundY - h, width: Math.random() * 20 + 20, height: h, type: 'block' };
+  } else if (rand < 0.7) {
+    const h = Math.random() * 30 + 50;
+    obs = { x: W + 50, y: groundY - h, width: Math.random() * 15 + 18, height: h, type: 'tall' };
+  } else if (rand < 0.85) {
+    obs = { x: W + 50, y: groundY - 30, width: 22, height: 30, type: 'double', extraY: groundY - 35, extraX: 50 };
+  } else {
+    obs = { x: W + 50, y: groundY - 70 - Math.random() * 40, width: 40, height: 20, type: 'flying' };
+  }
+
+  obstacles.push(obs);
+
+  if (Math.random() < 0.6) {
+    const coinCount = Math.floor(Math.random() * 4) + 1;
+    const baseY = obs.type === 'flying' ? obs.y - 30 : groundY - 80 - Math.random() * 60;
+    for (let i = 0; i < coinCount; i++) {
+      coinItems.push({
+        x: obs.x + 40 + i * 28, y: baseY,
+        radius: 8, collected: false,
+        bobOffset: Math.random() * Math.PI * 2
+      });
+    }
+  }
+}
+
+function spawnParticles(x, y, color, count, spread, life) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = Math.random() * spread + 1;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd - 1,
+      life: life || (Math.random() * 30 + 20),
+      maxLife: life || 50,
+      color,
+      size: Math.random() * 4 + 1
+    });
+  }
+}
+
+function spawnSpeedLine() {
+  if (speed < 7 || Math.random() > 0.3) return;
+  speedLines.push({
+    x: W + 10, y: Math.random() * groundY,
+    length: Math.random() * 40 + 20, life: 15, maxLife: 15
+  });
+}
+
+function checkCollision(a, b) {
+  const m = 4;
+  return a.x + m < b.x + b.width - m && a.x + a.width - m > b.x + m &&
+         a.y + m < b.y + b.height - m && a.y + a.height - m > b.y + m;
+}
+
+function checkCircleCollision(rect, cx, cy, cr) {
+  const closestX = Math.max(rect.x, Math.min(cx, rect.x + rect.width));
+  const closestY = Math.max(rect.y, Math.min(cy, rect.y + rect.height));
+  const dx = cx - closestX;
+  const dy = cy - closestY;
+  return (dx * dx + dy * dy) < (cr * cr);
+}
+
+function triggerShake(duration, intensity) {
+  shakeDuration = duration;
+  shakeIntensity = intensity || 6;
+}
+
+function jump() {
+  if (gameState === 'over') { startGame(); return; }
+  if (gameState !== 'playing') return;
+  if (player.jumps < player.maxJumps) {
+    if (player.jumps === 0) {
+      player.vy = JUMP_FORCE;
+      playSound('jump');
+      spawnParticles(player.x + player.width / 2, groundY, '#00ffaa', 8, 3, 20);
+    } else {
+      player.vy = DOUBLE_JUMP_FORCE;
+      playSound('doubleJump');
+      spawnParticles(player.x + player.width / 2, player.y + player.height, '#ff2266', 10, 4, 25);
+    }
+    player.jumps++;
+    player.onGround = false;
+  }
+}
+
+async function startGame() {
+  initAudio();
+  resetGame();
+  gameState = 'playing';
+  startScreen.classList.add('hidden');
+  gameOverScreen.classList.add('hidden');
+  historyScreen.classList.add('hidden');
+  hud.classList.remove('hidden');
+  newRecordEl.classList.remove('show');
+}
+
+async function gameOver() {
+  gameState = 'over';
+  player.alive = false;
+  playSound('hit');
+  triggerShake(15, 10);
+
+  spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#ff2266', 30, 6, 40);
+  spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#ffaa00', 20, 5, 35);
+  spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#ffffff', 10, 4, 30);
+
+  gameDuration = ((Date.now() - gameStartTime) / 1000);
+
+  let isNewRecord = false;
+  if (score > bestScore) {
+    bestScore = score;
+    isNewRecord = true;
+  }
+
+  // ===== GUARDAR EN BASE DE DATOS =====
+  const gameData = {
+    date: new Date().toISOString(),
+    score: score,
+    coins: coins,
+    maxSpeed: parseFloat(maxSpeedReached.toFixed(1)),
+    duration: parseFloat(gameDuration.toFixed(1)),
+    distance: Math.floor(totalDistance),
+    obstaclesPassed: obstacles.length
+  };
+
+  try {
+    await saveGame(gameData);
+  } catch (e) {
+    console.error('No se pudo guardar la partida:', e);
+  }
+
+  setTimeout(() => {
+    finalScore.textContent = score;
+    finalCoins.textContent = coins;
+    finalBest.textContent = bestScore;
+    finalSpeed.textContent = maxSpeedReached.toFixed(1);
+    finalTime.textContent = gameDuration.toFixed(1) + 's';
+    hud.classList.add('hidden');
+    gameOverScreen.classList.remove('hidden');
+
+    if (isNewRecord) {
+      newRecordEl.classList.add('show');
+      playSound('score');
+      setTimeout(() => newRecordEl.classList.remove('show'), 2000);
+    }
+  }, 600);
+}
+
+// ============================================
+// DIBUJO
+// ============================================
+
+function drawStars() {
+  bgStars.forEach(s => {
+    const twinkle = Math.sin(frameCount * s.twinkleSpeed) * 0.3 + 0.7;
+    ctx.fillStyle = `rgba(224,232,255,${s.brightness * twinkle})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawBuildings() {
+  bgBuildings.forEach(b => {
+    const layerSpeed = b.layer === 0 ? 0.3 : 0.6;
+    const bx = ((b.x - frameCount * speed * layerSpeed * 0.15) % (W + 200) + W + 200) % (W + 200) - 100;
+    const by = groundY - b.height;
+    ctx.fillStyle = b.color;
+    ctx.fillRect(bx, by, b.width, b.height);
+    const winGap = 8;
+    const cols = Math.floor((b.width - 6) / winGap);
+    const rows = Math.floor((b.height - 6) / winGap);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (Math.sin(bx * 0.1 + r * 3.7 + c * 2.3) > 0.2) {
+          ctx.fillStyle = b.layer === 0
+            ? `rgba(0,255,170,${Math.random() * 0.08 + 0.02})`
+            : `rgba(255,34,102,${Math.random() * 0.08 + 0.02})`;
+          ctx.fillRect(bx + 4 + c * winGap, by + 4 + r * winGap, 3, 3);
+        }
+      }
+    }
+  });
+}
+
+function drawGround() {
+  ctx.shadowColor = '#00ffaa';
+  ctx.shadowBlur = 15;
+  ctx.strokeStyle = '#00ffaa';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, groundY);
+  ctx.lineTo(W, groundY);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  const gridSize = 40;
+  const offset = (frameCount * speed) % gridSize;
+  ctx.strokeStyle = 'rgba(0,255,170,0.08)';
+  ctx.lineWidth = 1;
+  for (let x = -offset; x < W; x += gridSize) {
+    ctx.beginPath(); ctx.moveTo(x, groundY); ctx.lineTo(x, H); ctx.stroke();
+  }
+  const groundDepth = H - groundY;
+  for (let i = 1; i <= 4; i++) {
+    const y = groundY + (groundDepth / 5) * i;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  const grd = ctx.createLinearGradient(0, groundY, 0, H);
+  grd.addColorStop(0, 'rgba(0,255,170,0.06)');
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, groundY, W, groundDepth);
+}
+
+function drawPlayer() {
+  if (!player.alive && shakeDuration <= 0) return;
+  const px = player.x, py = player.y, pw = player.width, ph = player.height;
+  ctx.save();
+
+  player.trail.forEach((t, i) => {
+    const alpha = (i / player.trail.length) * 0.3;
+    ctx.fillStyle = `rgba(0,255,170,${alpha})`;
+    ctx.fillRect(t.x + 4, t.y + 4, pw - 8, ph - 8);
+  });
+
+  const bodyGrad = ctx.createLinearGradient(px, py, px, py + ph);
+  bodyGrad.addColorStop(0, '#00ffaa');
+  bodyGrad.addColorStop(0.5, '#00cc88');
+  bodyGrad.addColorStop(1, '#009966');
+  ctx.fillStyle = bodyGrad;
+  ctx.shadowColor = '#00ffaa';
+  ctx.shadowBlur = 20;
+
+  ctx.beginPath();
+  ctx.moveTo(px + pw / 2, py);
+  ctx.lineTo(px + pw, py + ph * 0.3);
+  ctx.lineTo(px + pw - 2, py + ph);
+  ctx.lineTo(px + 2, py + ph);
+  ctx.lineTo(px, py + ph * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = 8;
+  ctx.fillRect(px + pw * 0.55, py + ph * 0.2, pw * 0.25, ph * 0.12);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#ff2266';
+  ctx.fillRect(px + pw * 0.6, py + ph * 0.23, pw * 0.12, ph * 0.06);
+
+  if (player.onGround && player.alive) {
+    player.runTimer += speed * 0.15;
+    const lo = Math.sin(player.runTimer) * 6;
+    ctx.strokeStyle = '#00ffaa';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#00ffaa';
+    ctx.shadowBlur = 6;
+    ctx.beginPath(); ctx.moveTo(px + pw * 0.35, py + ph); ctx.lineTo(px + pw * 0.35 + lo, py + ph + 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px + pw * 0.65, py + ph); ctx.lineTo(px + pw * 0.65 - lo, py + ph + 8); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  if (!player.onGround && player.jumps >= 2) {
+    ctx.strokeStyle = 'rgba(255,34,102,0.5)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#ff2266';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.ellipse(px + pw / 2, py + ph + 4, pw * 0.6, 4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
+function drawObstacles() {
+  obstacles.forEach(obs => {
+    ctx.save();
+    if (obs.type === 'flying') {
+      const cx = obs.x + obs.width / 2;
+      const cy = obs.y + obs.height / 2;
+      ctx.fillStyle = '#ff2266';
+      ctx.shadowColor = '#ff2266';
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.moveTo(cx, obs.y); ctx.lineTo(obs.x + obs.width, cy);
+      ctx.lineTo(cx, obs.y + obs.height); ctx.lineTo(obs.x, cy);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.moveTo(cx, obs.y + 4); ctx.lineTo(obs.x + obs.width - 6, cy);
+      ctx.lineTo(cx, obs.y + obs.height - 4); ctx.lineTo(obs.x + 6, cy);
+      ctx.closePath(); ctx.fill();
+    } else {
+      const grad = ctx.createLinearGradient(obs.x, obs.y, obs.x, obs.y + obs.height);
+      grad.addColorStop(0, '#ff2266');
+      grad.addColorStop(1, '#aa1144');
+      ctx.fillStyle = grad;
+      ctx.shadowColor = '#ff2266';
+      ctx.shadowBlur = 12;
+      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      const lines = Math.floor(obs.height / 10);
+      for (let i = 1; i < lines; i++) {
+        ctx.beginPath(); ctx.moveTo(obs.x, obs.y + i * 10); ctx.lineTo(obs.x + obs.width, obs.y + i * 10); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(255,100,150,0.6)';
+      ctx.fillRect(obs.x, obs.y, obs.width, 2);
+
+      if (obs.type === 'double') {
+        const grad2 = ctx.createLinearGradient(obs.x + obs.extraX, obs.extraY, obs.x + obs.extraX, obs.extraY + 35);
+        grad2.addColorStop(0, '#ff2266');
+        grad2.addColorStop(1, '#aa1144');
+        ctx.fillStyle = grad2;
+        ctx.shadowColor = '#ff2266';
+        ctx.shadowBlur = 12;
+        ctx.fillRect(obs.x + obs.extraX, obs.extraY, obs.width, 35);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255,100,150,0.6)';
+        ctx.fillRect(obs.x + obs.extraX, obs.extraY, obs.width, 2);
+      }
+    }
+    ctx.restore();
+  });
+}
+
+function drawCoins() {
+  coinItems.forEach(c => {
+    if (c.collected) return;
+    const bob = Math.sin(frameCount * 0.06 + c.bobOffset) * 4;
+    const cy = c.y + bob;
+    ctx.save();
+    ctx.shadowColor = '#ffaa00';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#ffaa00';
+    ctx.beginPath(); ctx.arc(c.x, cy, c.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffdd44';
+    ctx.beginPath(); ctx.arc(c.x - 1, cy - 1, c.radius * 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#cc8800';
+    ctx.font = 'bold 10px Orbitron';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$', c.x, cy + 1);
+    ctx.restore();
+  });
+}
+
+function drawParticles() {
+  particles.forEach(p => {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+}
+
+function drawSpeedLines() {
+  speedLines.forEach(sl => {
+    const alpha = sl.life / sl.maxLife;
+    ctx.strokeStyle = `rgba(0,255,170,${alpha * 0.3})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sl.x, sl.y); ctx.lineTo(sl.x + sl.length, sl.y); ctx.stroke();
+  });
+}
+
+function drawSpeedBar() {
+  const barW = 100, barH = 3, bx = W - barW - 15, by = 52;
+  const fill = (speed - BASE_SPEED) / (MAX_SPEED - BASE_SPEED);
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.fillRect(bx, by, barW, barH);
+  const grad = ctx.createLinearGradient(bx, by, bx + barW * fill, by);
+  grad.addColorStop(0, '#00ffaa');
+  grad.addColorStop(1, fill > 0.7 ? '#ff2266' : '#ffaa00');
+  ctx.fillStyle = grad;
+  ctx.fillRect(bx, by, barW * fill, barH);
+}
+
+// ============================================
+// ACTUALIZACIÓN
+// ============================================
+
+function update() {
+  if (gameState !== 'playing') return;
+  frameCount++;
+
+  if (speed < MAX_SPEED) {
+    speed += SPEED_INCREMENT;
+    if (speed > maxSpeedReached) maxSpeedReached = speed;
+  }
+
+  totalDistance += speed * 0.1;
+
+  if (frameCount % 5 === 0) {
+    score++;
+    if (score % 100 === 0) playSound('score');
+  }
+
+  player.vy += GRAVITY;
+  player.y += player.vy;
+
+  if (player.y >= groundY - player.height) {
+    player.y = groundY - player.height;
+    player.vy = 0;
+    player.onGround = true;
+    player.jumps = 0;
+  } else {
+    player.onGround = false;
+  }
+
+  if (frameCount % 2 === 0) {
+    player.trail.push({ x: player.x, y: player.y });
+    if (player.trail.length > 8) player.trail.shift();
+  }
+
+  spawnObstacle();
+
+  obstacles.forEach(obs => { obs.x -= speed; });
+  obstacles = obstacles.filter(obs => obs.x + obs.width + (obs.extraX || 0) > -50);
+
+  coinItems.forEach(c => { c.x -= speed; });
+  coinItems = coinItems.filter(c => c.x > -50 && !c.collected);
+
+  if (player.alive) {
+    const pr = { x: player.x, y: player.y, width: player.width, height: player.height };
+    for (const obs of obstacles) {
+      if (checkCollision(pr, obs)) { gameOver(); break; }
+      if (obs.type === 'double') {
+        const er = { x: obs.x + obs.extraX, y: obs.extraY, width: obs.width, height: 35 };
+        if (checkCollision(pr, er)) { gameOver(); break; }
+      }
+    }
+  }
+
+  const pr = { x: player.x, y: player.y, width: player.width, height: player.height };
+  coinItems.forEach(c => {
+    if (!c.collected && checkCircleCollision(pr, c.x, c.y, c.radius)) {
+      c.collected = true;
+      coins++;
+      score += 10;
+      playSound('coin');
+      spawnParticles(c.x, c.y, '#ffaa00', 8, 3, 20);
+      spawnParticles(c.x, c.y, '#ffdd44', 5, 2, 15);
+    }
+  });
+
+  particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life--; });
+  particles = particles.filter(p => p.life > 0);
+
+  spawnSpeedLine();
+  speedLines.forEach(sl => { sl.x -= speed * 2; sl.life--; });
+  speedLines = speedLines.filter(sl => sl.life > 0);
+
+  if (frameCount % 3 === 0 && player.onGround) {
+    spawnParticles(player.x + Math.random() * 10, groundY, 'rgba(0,255,170,0.5)', 1, 1, 15);
+  }
+
+  if (shakeDuration > 0) {
+    shakeDuration--;
+    shakeX = (Math.random() - 0.5) * shakeIntensity;
+    shakeY = (Math.random() - 0.5) * shakeIntensity;
+    shakeIntensity *= 0.9;
+  } else {
+    shakeX = 0; shakeY = 0;
+  }
+
+  updateHUD();
+}
+
+// ============================================
+// BUCLE PRINCIPAL
+// ============================================
+
+function draw() {
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+  ctx.fillStyle = '#060610';
+  ctx.fillRect(-10, -10, W + 20, H + 20);
+
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+  bgGrad.addColorStop(0, '#0a0818');
+  bgGrad.addColorStop(0.5, '#0c0a1a');
+  bgGrad.addColorStop(1, '#0a1018');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, groundY);
+
+  drawStars();
+  drawBuildings();
+  drawSpeedLines();
+  drawGround();
+  drawObstacles();
+  drawCoins();
+  drawPlayer();
+  drawParticles();
+
+  if (gameState === 'playing') drawSpeedBar();
+
+  ctx.restore();
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// ============================================
+// PANTALLA HISTORIAL
+// ============================================
+
+async function showHistory() {
+  historyScreen.classList.remove('hidden');
+  startScreen.classList.add('hidden');
+  gameOverScreen.classList.add('hidden');
+  hud.classList.add('hidden');
+
+  try {
+    const stats = await getGlobalStats();
+    const games = await getAllGames();
+
+    // Estadísticas globales
+    document.getElementById('gsTotalGames').textContent = stats.totalGames || 0;
+    document.getElementById('gsBestScore').textContent = stats.bestScore || 0;
+    document.getElementById('gsTotalCoins').textContent = stats.totalCoins || 0;
+    document.getElementById('gsAvgScore').textContent = stats.totalGames > 0
+      ? Math.round(stats.totalScore / stats.totalGames) : 0;
+    document.getElementById('gsTotalTime').textContent = formatTime(stats.totalTime || 0);
+    document.getElementById('gsTotalDist').textContent = (stats.totalDistance || 0).toLocaleString();
+
+    // Tabla de partidas
+    const tbody = document.getElementById('historyBody');
+    tbody.innerHTML = '';
+
+    if (games.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-history">Aun no hay partidas guardadas</td></tr>';
+      return;
+    }
+
+    // Encontrar el ID del mejor score
+    const bestGameId = games.reduce((best, g) => g.score > (games.find(x => x.id === best)?.score || 0) ? g.id : best, games[0].id);
+
+    games.forEach((g, i) => {
+      const tr = document.createElement('tr');
+      if (g.id === bestGameId) tr.classList.add('best-row');
+
+      const rank = i + 1;
+      let rankClass = 'rank-n';
+      if (rank === 1) rankClass = 'rank-1';
+      else if (rank === 2) rankClass = 'rank-2';
+      else if (rank === 3) rankClass = 'rank-3';
+
+      const date = new Date(g.date);
+      const dateStr = date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' +
+                      date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+      tr.innerHTML = `
+        <td><span class="rank-badge ${rankClass}">${rank}</span></td>
+        <td>${dateStr}</td>
+        <td>${g.score}</td>
+        <td>${g.coins}</td>
+        <td>${g.maxSpeed}</td>
+        <td>${g.duration}s</td>
+        <td>${(g.distance || 0).toLocaleString()}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error('Error cargando historial:', e);
+    document.getElementById('historyBody').innerHTML =
+      '<tr><td colspan="7" class="empty-history">Error al cargar datos</td></tr>';
+  }
+}
+
+function formatTime(seconds) {
+  if (seconds < 60) return seconds.toFixed(0) + 's';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return m + 'm ' + s + 's';
+}
+
+function goBack() {
+  historyScreen.classList.add('hidden');
+  if (gameState === 'over') {
+    gameOverScreen.classList.remove('hidden');
+  } else {
+    startScreen.classList.remove('hidden');
+  }
+}
+
+// ============================================
+// EVENTOS
+// ============================================
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') {
+    e.preventDefault();
+    if (gameState === 'start') startGame();
+    else if (gameState === 'playing') jump();
+    else if (gameState === 'over') startGame();
+  }
+});
+
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (gameState === 'playing') jump();
+});
+
+document.getElementById('btnStart').addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
+document.getElementById('btnRestart').addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
+document.getElementById('btnHistory').addEventListener('click', (e) => { e.stopPropagation(); showHistory(); });
+document.getElementById('btnHistory2').addEventListener('click', (e) => { e.stopPropagation(); showHistory(); });
+document.getElementById('btnBack').addEventListener('click', (e) => { e.stopPropagation(); goBack(); });
+
+// Borrar base de datos
+document.getElementById('btnClearDB').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (!confirm('Estas seguro de que quieres borrar TODOS los datos? Esta accion no se puede deshacer.')) return;
+  try {
+    await clearAllData();
+    bestScore = 0;
+    hudBest.textContent = '0';
+    showHistory(); // Refrescar pantalla
+  } catch (err) {
+    console.error('Error borrando datos:', err);
+  }
+});
+
+// Exportar JSON
+document.getElementById('btnExportDB').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  try {
+    const json = await exportDataJSON();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `neon-dash-backup-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Error exportando:', err);
+  }
+});
+
+window.addEventListener('resize', resize);
+
+// ============================================
+// INICIALIZACIÓN
+// ============================================
+
+(async function init() {
+  resize();
+  initBackground();
+
+  // Abrir base de datos y cargar mejor puntuación
+  try {
+    await openDB();
+    const stats = await getGlobalStats();
+    bestScore = stats.bestScore || 0;
+    hudBest.textContent = bestScore;
+  } catch (e) {
+    console.error('Error inicializando DB:', e);
+  }
+
+  gameLoop();
+
+  // Animación idle
+  function idleAnimation() {
+    if (gameState === 'start') {
+      player.y = groundY - player.height + Math.sin(Date.now() * 0.003) * 5;
+    }
+    requestAnimationFrame(idleAnimation);
+  }
+  idleAnimation();
+})();
+</script>
+</body>
+</html>
