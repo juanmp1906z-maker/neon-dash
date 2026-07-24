@@ -7,3843 +7,1431 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-/* ==========================================
-   VARIABLES GLOBALES DE DISEÑO
-   ========================================== */
-:root {
-  --bg: #0a0a12;
-  --fg: #e0e8ff;
-  --accent: #00ffaa;
-  --accent2: #ff2266;
-  --accent3: #ffaa00;
-  --border: rgba(0, 255, 170, 0.15);
-  --muted: rgba(224, 232, 255, 0.35);
-  --purple: #8b5cf6;
-  --cyan: #00ddff;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: 'Rajdhani', sans-serif;
-  overflow: hidden;
-  height: 100vh;
-  height: 100dvh;
-  width: 100vw;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Fondo animado con gradientes */
-body::before {
-  content: '';
-  position: fixed;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background:
-    radial-gradient(ellipse at 20% 50%, rgba(0,255,170,0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(255,34,102,0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, rgba(255,170,0,0.03) 0%, transparent 50%);
-  animation: bgDrift 20s ease-in-out infinite alternate;
-  z-index: 0;
-  pointer-events: none;
-}
-
-@keyframes bgDrift {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  100% { transform: translate(-3%, 2%) rotate(3deg); }
-}
-
-/* ==========================================
-   CONTENEDOR PRINCIPAL DEL JUEGO
-   ========================================== */
-#gameWrapper {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 900px;
-  aspect-ratio: 16/9;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 0 20px rgba(0,255,170,0.3), 0 0 60px rgba(0,0,0,0.6);
-  background: #060610;
-  flex-shrink: 0;
-}
-
-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-/* ==========================================
-   HUD - INDICADORES EN PANTALLA
-   ========================================== */
-#hud {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  padding: 12px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  pointer-events: none;
-  z-index: 10;
-  font-family: 'Orbitron', monospace;
-}
-
-.hud-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.hud-label {
-  font-size: 10px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
-
-.hud-value {
-  font-size: 22px;
-  font-weight: 900;
-  color: var(--accent);
-  text-shadow: 0 0 12px rgba(0,255,170,0.5);
-}
-
-.hud-value.coins {
-  color: var(--accent3);
-  text-shadow: 0 0 12px rgba(255,170,0,0.5);
-}
-
-.hud-value.best {
-  color: var(--accent2);
-  text-shadow: 0 0 12px rgba(255,34,102,0.5);
-  font-size: 16px;
-}
-
-.hud-player {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 2px;
-  text-shadow: 0 0 8px rgba(0,255,170,0.3);
-  opacity: 0.7;
-}
-
-/* Botones del HUD */
-.hud-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  pointer-events: all;
-  transition: all 0.2s;
-  font-size: 14px;
-  position: relative;
-}
-
-.hud-btn.friends {
-  background: rgba(0,221,255,0.08);
-  border: 1px solid rgba(0,221,255,0.2);
-  color: var(--cyan);
-}
-
-.hud-btn.friends:hover {
-  background: rgba(0,221,255,0.2);
-  box-shadow: 0 0 12px rgba(0,221,255,0.3);
-}
-
-.hud-btn.chat {
-  background: rgba(139,92,246,0.08);
-  border: 1px solid rgba(139,92,246,0.2);
-  color: var(--purple);
-}
-
-.hud-btn.chat:hover {
-  background: rgba(139,92,246,0.2);
-  box-shadow: 0 0 12px rgba(139,92,246,0.3);
-}
-
-/* Badge de notificación */
-.notif-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  background: var(--accent2);
-  color: #fff;
-  font-size: 9px;
-  font-weight: 900;
-  font-family: 'Orbitron', monospace;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  box-shadow: 0 0 8px rgba(255,34,102,0.5);
-}
-
-.notif-badge.hidden {
-  display: none;
-}
-
-/* ==========================================
-   OVERLAYS - PANTALLAS SUPERPUESTAS
-   ========================================== */
-.overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: rgba(6,6,16,0.94);
-  backdrop-filter: blur(10px);
-  z-index: 20;
-  transition: opacity 0.4s ease;
-  padding: 14px;
-  overflow-y: auto;
-}
-
-.overlay.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.overlay h1 {
-  font-family: 'Orbitron', monospace;
-  font-size: clamp(22px, 5vw, 48px);
-  font-weight: 900;
-  color: var(--accent);
-  text-shadow: 0 0 30px rgba(0,255,170,0.4);
-  margin-bottom: 4px;
-  letter-spacing: 4px;
-}
-
-.overlay h1 span {
-  color: var(--accent2);
-  text-shadow: 0 0 30px rgba(255,34,102,0.4);
-}
-
-.subtitle {
-  font-size: clamp(11px, 2vw, 16px);
-  color: var(--muted);
-  margin-bottom: 10px;
-  font-weight: 300;
-  letter-spacing: 3px;
-}
-
-/* ==========================================
-   CAMPO DE NOMBRE EN PANTALLA DE INICIO
-   ========================================== */
-.name-input-wrap {
-  margin-bottom: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.name-input-wrap label {
-  font-size: 9px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
-
-.name-input {
-  font-family: 'Orbitron', monospace;
-  font-size: 14px;
-  font-weight: 700;
-  padding: 8px 16px;
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  background: rgba(0,255,170,0.04);
-  color: var(--accent);
-  text-align: center;
-  width: 200px;
-  outline: none;
-  letter-spacing: 2px;
-  transition: all 0.2s;
-}
-
-.name-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 20px rgba(0,255,170,0.15);
-  background: rgba(0,255,170,0.08);
-}
-
-.name-input::placeholder {
-  color: rgba(0,255,170,0.2);
-}
-
-/* ==========================================
-   BADGE DE ESTADO DE CONEXIÓN
-   ========================================== */
-.online-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  margin-bottom: 6px;
-  padding: 4px 12px;
-  border-radius: 20px;
-  border: 1px solid;
-  transition: all 0.3s;
-}
-
-.online-badge.connected {
-  color: var(--accent);
-  border-color: rgba(0,255,170,0.2);
-  background: rgba(0,255,170,0.05);
-}
-
-.online-badge.disconnected {
-  color: var(--accent2);
-  border-color: rgba(255,34,102,0.2);
-  background: rgba(255,34,102,0.05);
-}
-
-.online-badge.checking {
-  color: var(--accent3);
-  border-color: rgba(255,170,0,0.2);
-  background: rgba(255,170,0,0.05);
-}
-
-.online-badge .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.online-badge.connected .dot {
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent);
-}
-
-.online-badge.disconnected .dot {
-  background: var(--accent2);
-  box-shadow: 0 0 6px var(--accent2);
-}
-
-.online-badge.checking .dot {
-  background: var(--accent3);
-  box-shadow: 0 0 6px var(--accent3);
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-/* ==========================================
-   BOTONES
-   ========================================== */
-.btn-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-bottom: 6px;
-}
-
-.btn {
-  font-family: 'Orbitron', monospace;
-  font-size: clamp(9px, 1.5vw, 12px);
-  font-weight: 700;
-  padding: 10px 20px;
-  border: 2px solid var(--accent);
-  background: rgba(0,255,170,0.08);
-  color: var(--accent);
-  border-radius: 8px;
-  cursor: pointer;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  transition: all 0.2s ease;
-  pointer-events: all;
-  white-space: nowrap;
-}
-
-.btn:hover {
-  background: rgba(0,255,170,0.18);
-  box-shadow: 0 0 30px rgba(0,255,170,0.25);
-  transform: translateY(-2px);
-}
-
-.btn:active {
-  transform: translateY(0);
-}
-
-.btn.secondary {
-  border-color: var(--accent3);
-  color: var(--accent3);
-  background: rgba(255,170,0,0.06);
-}
-
-.btn.secondary:hover {
-  background: rgba(255,170,0,0.15);
-}
-
-.btn.chat-btn {
-  border-color: var(--purple);
-  color: var(--purple);
-  background: rgba(139,92,246,0.06);
-}
-
-.btn.chat-btn:hover {
-  background: rgba(139,92,246,0.15);
-}
-
-.btn.pm-btn {
-  border-color: var(--cyan);
-  color: var(--cyan);
-  background: rgba(0,221,255,0.06);
-}
-
-.btn.pm-btn:hover {
-  background: rgba(0,221,255,0.15);
-}
-
-.btn.danger {
-  border-color: var(--accent2);
-  color: var(--accent2);
-  background: rgba(255,34,102,0.06);
-}
-
-.btn.danger:hover {
-  background: rgba(255,34,102,0.15);
-}
-
-.btn.tiny {
-  padding: 3px 8px;
-  font-size: 7px;
-  letter-spacing: 0.5px;
-  border-width: 1px;
-}
-
-.btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
-/* ==========================================
-   CONTROLES DEL JUEGO (TECLADO)
-   ========================================== */
-.controls-hint {
-  margin-top: 8px;
-  font-size: 10px;
-  color: rgba(224,232,255,0.18);
-  text-align: center;
-  line-height: 1.8;
-}
-
-.controls-hint kbd {
-  display: inline-block;
-  padding: 2px 7px;
-  border: 1px solid rgba(224,232,255,0.1);
-  border-radius: 4px;
-  background: rgba(224,232,255,0.03);
-  font-family: 'Orbitron', monospace;
-  font-size: 9px;
-  color: rgba(224,232,255,0.3);
-  margin: 0 2px;
-}
-
-/* ==========================================
-   PANTALLA DE GAME OVER
-   ========================================== */
-.final-score {
-  font-family: 'Orbitron', monospace;
-  font-size: clamp(30px, 7vw, 60px);
-  font-weight: 900;
-  color: var(--fg);
-  margin: 4px 0 2px;
-}
-
-.score-label {
-  font-size: 11px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 4px;
-  margin-bottom: 8px;
-}
-
-.stats-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.stat {
-  text-align: center;
-}
-
-.stat-val {
-  font-family: 'Orbitron', monospace;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--accent3);
-}
-
-.stat-lbl {
-  font-size: 9px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
-
-.playing-as {
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 1.5px;
-  margin-bottom: 4px;
-}
-
-.playing-as strong {
-  color: var(--accent);
-}
-
-.user-coins-display {
-  font-size: 11px;
-  color: var(--accent3);
-  font-family: 'Orbitron', monospace;
-  letter-spacing: 1px;
-  margin-bottom: 6px;
-}
-
-.user-coins-display i {
-  margin-right: 4px;
-}
-
-/* ==========================================
-   PANTALLA DE RANKING / HISTORIAL
-   ========================================== */
-.history-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-  width: 100%;
-  max-width: 700px;
-}
-
-.history-header h1 {
-  margin: 0;
-  font-size: clamp(14px, 3vw, 22px);
-}
-
-.back-btn {
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--border);
-  background: rgba(0,255,170,0.05);
-  color: var(--accent);
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.back-btn:hover {
-  background: rgba(0,255,170,0.15);
-}
-
-.tabs {
-  display: flex;
-  gap: 0;
-  margin-bottom: 10px;
-  width: 100%;
-  max-width: 700px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.tab-btn {
-  flex: 1;
-  padding: 8px 6px;
-  font-family: 'Orbitron', monospace;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: rgba(0,0,0,0.3);
-  color: var(--muted);
-}
-
-.tab-btn:hover {
-  background: rgba(0,255,170,0.05);
-}
-
-.tab-btn.active {
-  background: rgba(0,255,170,0.1);
-  color: var(--accent);
-  box-shadow: inset 0 -2px 0 var(--accent);
-}
-
-.tab-content {
-  display: none;
-  width: 100%;
-  max-width: 700px;
-}
-
-.tab-content.active {
-  display: block;
-}
-
-/* Tarjetas de estadísticas globales */
-.global-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 5px;
-  margin-bottom: 10px;
-}
-
-.gs-card {
-  background: rgba(0,255,170,0.04);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 4px;
-  text-align: center;
-}
-
-.gs-card .gs-val {
-  font-family: 'Orbitron', monospace;
-  font-size: clamp(11px, 2vw, 18px);
-  font-weight: 900;
-  color: var(--accent);
-  text-shadow: 0 0 10px rgba(0,255,170,0.3);
-}
-
-.gs-card .gs-lbl {
-  font-size: 8px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  margin-top: 2px;
-}
-
-.gs-card.gold .gs-val {
-  color: var(--accent3);
-  text-shadow: 0 0 10px rgba(255,170,0,0.3);
-}
-
-.gs-card.pink .gs-val {
-  color: var(--accent2);
-  text-shadow: 0 0 10px rgba(255,34,102,0.3);
-}
-
-/* Tabla de historial con scroll */
-.history-table-wrap {
-  max-height: 150px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(0,0,0,0.3);
-  margin-bottom: 10px;
-}
-
-.history-table-wrap::-webkit-scrollbar {
-  width: 4px;
-}
-
-.history-table-wrap::-webkit-scrollbar-thumb {
-  background: rgba(0,255,170,0.2);
-  border-radius: 4px;
-}
-
-.history-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 10px;
-}
-
-.history-table thead {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.history-table th {
-  background: rgba(0,255,170,0.08);
-  color: var(--accent);
-  font-family: 'Orbitron', monospace;
-  font-size: 7px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 5px 3px;
-  text-align: center;
-  border-bottom: 1px solid var(--border);
-}
-
-.history-table td {
-  padding: 4px 3px;
-  text-align: center;
-  color: var(--fg);
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-}
-
-.history-table tr:hover td {
-  background: rgba(0,255,170,0.03);
-}
-
-.history-table .me-row td {
-  color: var(--accent);
-  font-weight: 700;
-  background: rgba(0,255,170,0.05);
-}
-
-/* Badges de ranking */
-.rank-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  font-family: 'Orbitron', monospace;
-  font-size: 7px;
-  font-weight: 900;
-}
-
-.rank-1 {
-  background: rgba(255,170,0,0.2);
-  color: #ffaa00;
-  border: 1px solid rgba(255,170,0,0.4);
-}
-
-.rank-2 {
-  background: rgba(192,192,192,0.15);
-  color: #c0c0c0;
-  border: 1px solid rgba(192,192,192,0.3);
-}
-
-.rank-3 {
-  background: rgba(205,127,50,0.15);
-  color: #cd7f32;
-  border: 1px solid rgba(205,127,50,0.3);
-}
-
-.rank-n {
-  background: rgba(255,255,255,0.04);
-  color: var(--muted);
-  border: 1px solid rgba(255,255,255,0.06);
-}
-
-.empty-history {
-  color: var(--muted);
-  font-size: 11px;
-  padding: 16px;
-  text-align: center;
-  letter-spacing: 1px;
-}
-
-.loading-text {
-  color: var(--muted);
-  font-size: 10px;
-  padding: 14px;
-  text-align: center;
-}
-
-.loading-text i {
-  margin-right: 6px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* ==========================================
-   ELEMENTOS FLOTANTES (RECORD, GUARDADO)
-   ========================================== */
-#newRecord {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0);
-  font-family: 'Orbitron', monospace;
-  font-size: clamp(14px, 3vw, 24px);
-  font-weight: 900;
-  color: var(--accent3);
-  text-shadow: 0 0 30px rgba(255,170,0,0.6);
-  letter-spacing: 6px;
-  z-index: 25;
-  pointer-events: none;
-  opacity: 0;
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-#newRecord.show {
-  transform: translate(-50%, -50%) scale(1);
-  opacity: 1;
-}
-
-.save-flash {
-  position: absolute;
-  bottom: 10px;
-  right: 14px;
-  font-size: 10px;
-  color: rgba(0,255,170,0.5);
-  font-family: 'Orbitron', monospace;
-  letter-spacing: 2px;
-  z-index: 15;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3;
-}
-
-.save-flash.show {
-  opacity: 1;
-}
-
-.version-text {
-  position: relative;
-  z-index: 1;
-  font-family: 'Orbitron', monospace;
-  font-size: 9px;
-  color: rgba(224,232,255,0.1);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  padding: 4px 0 2px;
-  flex-shrink: 0;
-}
-
-/* ==========================================
-   PANTALLA DE AUTENTICACIÓN
-   ========================================== */
-#authScreen {
-  justify-content: flex-start !important;
-  padding: 6px 14px !important;
-  overflow-y: auto !important;
-}
-
-.auth-box {
-  width: 100%;
-  max-width: 340px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.auth-box h1 {
-  font-size: clamp(16px, 3.5vw, 24px);
-  margin-bottom: 0;
-}
-
-.auth-tabs {
-  display: flex;
-  gap: 0;
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 2px;
-}
-
-.auth-tab {
-  flex: 1;
-  padding: 6px;
-  font-family: 'Orbitron', monospace;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: rgba(0,0,0,0.3);
-  color: var(--muted);
-}
-
-.auth-tab.active {
-  background: rgba(0,255,170,0.1);
-  color: var(--accent);
-}
-
-.auth-form {
-  width: 100%;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.auth-form.active {
-  display: flex;
-}
-
-.auth-field {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.auth-field label {
-  font-size: 7px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  font-family: 'Orbitron', monospace;
-}
-
-.auth-field input {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 5px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: rgba(0,255,170,0.03);
-  color: var(--fg);
-  outline: none;
-  transition: all 0.2s;
-  width: 100%;
-}
-
-.auth-field input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 12px rgba(0,255,170,0.1);
-  background: rgba(0,255,170,0.06);
-}
-
-.auth-field input::placeholder {
-  color: rgba(224,232,255,0.15);
-}
-
-.auth-error {
-  font-size: 8px;
-  color: var(--accent2);
-  font-family: 'Orbitron', monospace;
-  letter-spacing: 0.5px;
-  text-align: center;
-  min-height: 12px;
-  max-width: 100%;
-  word-break: break-word;
-  line-height: 1.3;
-}
-
-.auth-divider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin: 2px 0;
-}
-
-.auth-divider::before,
-.auth-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-.auth-divider span {
-  font-size: 7px;
-  color: var(--muted);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  font-family: 'Orbitron', monospace;
-}
-
-.logged-in-info {
-  font-size: 9px;
-  color: var(--accent);
-  font-family: 'Orbitron', monospace;
-  letter-spacing: 1px;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.logged-in-info .logout-link {
-  color: var(--accent2);
-  cursor: pointer;
-  text-decoration: underline;
-  font-size: 8px;
-}
-
-/* ==========================================
-   SISTEMA DE AMIGOS
-   ========================================== */
-.friends-search {
-  width: 100%;
-  position: relative;
-  margin-bottom: 8px;
-}
-
-.friends-search input {
-  width: 100%;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 7px 12px 7px 32px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(0,221,255,0.03);
-  color: var(--fg);
-  outline: none;
-  transition: all 0.2s;
-}
-
-.friends-search input:focus {
-  border-color: var(--cyan);
-  box-shadow: 0 0 15px rgba(0,221,255,0.1);
-}
-
-.friends-search input::placeholder {
-  color: rgba(224,232,255,0.15);
-}
-
-.friends-search i {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.friends-section-title {
-  font-size: 9px;
-  color: var(--muted);
-  font-family: 'Orbitron', monospace;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin: 6px 0 4px;
-  width: 100%;
-}
-
-.friend-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(0,0,0,0.2);
-  margin-bottom: 4px;
-  width: 100%;
-  transition: all 0.2s;
-}
-
-.friend-card:hover {
-  background: rgba(0,221,255,0.04);
-  border-color: rgba(0,221,255,0.15);
-}
-
-.friend-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(0,221,255,0.1);
-  border: 1px solid rgba(0,221,255,0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Orbitron', monospace;
-  font-size: 10px;
-  font-weight: 900;
-  color: var(--cyan);
-  flex-shrink: 0;
-}
-
-.friend-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.friend-name {
-  font-family: 'Orbitron', monospace;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--fg);
-  letter-spacing: 1px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.friend-meta {
-  font-size: 8px;
-  color: var(--muted);
-  letter-spacing: 0.5px;
-}
-
-.friend-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.friend-status-dot.online {
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent);
-}
-
-.friend-status-dot.offline {
-  background: rgba(224,232,255,0.15);
-}
-
-.friend-actions {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.friends-list {
-  max-height: 180px;
-  overflow-y: auto;
-  width: 100%;
-}
-
-.friends-list::-webkit-scrollbar {
-  width: 3px;
-}
-
-.friends-list::-webkit-scrollbar-thumb {
-  background: rgba(0,221,255,0.2);
-  border-radius: 4px;
-}
-
-.no-friends {
-  color: var(--muted);
-  font-size: 10px;
-  padding: 12px;
-  text-align: center;
-  letter-spacing: 1px;
-}
-
-/* ==========================================
-   PANTALLA DE MENSAJES PRIVADOS
-   ========================================== */
-#pmScreen {
-  padding: 0;
-  justify-content: stretch;
-}
-
-.pm-header {
-  flex-shrink: 0;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-bottom: 1px solid rgba(0,221,255,0.15);
-  background: rgba(0,221,255,0.04);
-}
-
-.pm-header h1 {
-  margin: 0;
-  font-size: clamp(12px, 2.2vw, 18px);
-  color: var(--cyan);
-  text-shadow: 0 0 15px rgba(0,221,255,0.3);
-  flex: 1;
-}
-
-.pm-close-btn {
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--border);
-  background: rgba(255,34,102,0.05);
-  color: var(--accent2);
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  transition: all 0.2s;
-}
-
-.pm-close-btn:hover {
-  background: rgba(255,34,102,0.15);
-}
-
-.pm-messages {
-  flex: 1;
-  overflow-y: auto;
-  width: 100%;
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.pm-messages::-webkit-scrollbar {
-  width: 3px;
-}
-
-.pm-messages::-webkit-scrollbar-thumb {
-  background: rgba(0,221,255,0.2);
-  border-radius: 4px;
-}
-
-.pm-msg {
-  max-width: 80%;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,0.3);
-  word-break: break-word;
-}
-
-.pm-msg.mine {
-  margin-left: auto;
-  border-color: rgba(0,221,255,0.25);
-  background: rgba(0,221,255,0.05);
-}
-
-.pm-msg.other {
-  margin-left: 0;
-}
-
-.pm-msg-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.pm-msg-name {
-  font-family: 'Orbitron', monospace;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-.pm-msg.mine .pm-msg-name { color: var(--cyan); }
-.pm-msg.other .pm-msg-name { color: var(--muted); }
-
-.pm-msg-time {
-  font-size: 7px;
-  color: rgba(224,232,255,0.15);
-  margin-left: auto;
-}
-
-.pm-msg-text {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--fg);
-}
-
-.pm-input-area {
-  flex-shrink: 0;
-  width: 100%;
-  padding: 8px 10px;
-  border-top: 1px solid var(--border);
-  background: rgba(0,0,0,0.3);
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.pm-input {
-  flex: 1;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(0,221,255,0.04);
-  color: var(--fg);
-  outline: none;
-  transition: all 0.2s;
-}
-
-.pm-input:focus {
-  border-color: var(--cyan);
-  box-shadow: 0 0 15px rgba(0,221,255,0.1);
-}
-
-.pm-input::placeholder {
-  color: rgba(0,221,255,0.2);
-}
-
-.pm-send-btn {
-  width: 36px;
-  height: 36px;
-  border: 2px solid var(--cyan);
-  background: rgba(0,221,255,0.08);
-  color: var(--cyan);
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.pm-send-btn:hover {
-  background: rgba(0,221,255,0.2);
-  box-shadow: 0 0 15px rgba(0,221,255,0.2);
-}
-
-/* ==========================================
-   PANTALLA DE CHAT GRUPAL
-   ========================================== */
-#chatScreen {
-  padding: 0;
-  justify-content: stretch;
-}
-
-.chat-header {
-  flex-shrink: 0;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(139,92,246,0.05);
-}
-
-.chat-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.chat-header-left h1 {
-  margin: 0;
-  font-size: clamp(12px, 2.2vw, 18px);
-  color: var(--purple);
-  text-shadow: 0 0 15px rgba(139,92,246,0.3);
-}
-
-.chat-online-count {
-  font-size: 9px;
-  color: var(--muted);
-  font-family: 'Orbitron', monospace;
-  letter-spacing: 1px;
-}
-
-.chat-close-btn {
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--border);
-  background: rgba(255,34,102,0.05);
-  color: var(--accent2);
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  transition: all 0.2s;
-}
-
-.chat-close-btn:hover {
-  background: rgba(255,34,102,0.15);
-}
-
-.chat-hint {
-  flex-shrink: 0;
-  width: 100%;
-  padding: 5px 14px;
-  background: rgba(139,92,246,0.03);
-  border-bottom: 1px solid rgba(139,92,246,0.08);
-  font-size: 9px;
-  color: rgba(139,92,246,0.45);
-  text-align: center;
-  letter-spacing: 1px;
-  font-family: 'Orbitron', monospace;
-}
-
-.chat-hint strong {
-  color: rgba(139,92,246,0.75);
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  width: 100%;
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.chat-messages::-webkit-scrollbar {
-  width: 3px;
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-  background: rgba(139,92,246,0.2);
-  border-radius: 4px;
-}
-
-.chat-msg {
-  max-width: 80%;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,0.3);
-  word-break: break-word;
-}
-
-.chat-msg.mine {
-  margin-left: auto;
-  border-color: rgba(0,255,170,0.25);
-  background: rgba(0,255,170,0.05);
-}
-
-.chat-msg.ai {
-  margin-left: 0;
-  border-color: rgba(255,34,102,0.3);
-  background: rgba(255,34,102,0.06);
-  max-width: 85%;
-}
-
-.chat-msg.other {
-  margin-left: 0;
-}
-
-.chat-msg-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.chat-msg-name {
-  font-family: 'Orbitron', monospace;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-.chat-msg.mine .chat-msg-name { color: var(--accent); }
-.chat-msg.ai .chat-msg-name { color: var(--accent2); }
-.chat-msg.ai .chat-msg-name i { margin-right: 3px; font-size: 7px; }
-.chat-msg.other .chat-msg-name { color: var(--muted); }
-
-.chat-msg-time {
-  font-size: 7px;
-  color: rgba(224,232,255,0.15);
-  margin-left: auto;
-}
-
-.chat-msg-text {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--fg);
-}
-
-.chat-msg.ai .chat-msg-text {
-  color: rgba(255,200,220,0.9);
-}
-
-.chat-msg .mention {
-  color: var(--purple);
-  font-weight: 700;
-}
-
-.typing-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  font-size: 9px;
-  color: var(--accent2);
-  font-family: 'Orbitron', monospace;
-  letter-spacing: 1px;
-  flex-shrink: 0;
-}
-
-.typing-indicator.hidden {
-  display: none;
-}
-
-.typing-dots {
-  display: flex;
-  gap: 3px;
-}
-
-.typing-dots span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent2);
-  animation: typingBounce 1.4s infinite;
-}
-
-.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes typingBounce {
-  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
-  30% { opacity: 1; transform: translateY(-4px); }
-}
-
-.chat-input-area {
-  flex-shrink: 0;
-  width: 100%;
-  padding: 8px 10px;
-  border-top: 1px solid var(--border);
-  background: rgba(0,0,0,0.3);
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.chat-input {
-  flex: 1;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(139,92,246,0.04);
-  color: var(--fg);
-  outline: none;
-  transition: all 0.2s;
-}
-
-.chat-input:focus {
-  border-color: var(--purple);
-  box-shadow: 0 0 15px rgba(139,92,246,0.1);
-}
-
-.chat-input::placeholder {
-  color: rgba(139,92,246,0.2);
-}
-
-.chat-send-btn {
-  width: 36px;
-  height: 36px;
-  border: 2px solid var(--purple);
-  background: rgba(139,92,246,0.08);
-  color: var(--purple);
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.chat-send-btn:hover {
-  background: rgba(139,92,246,0.2);
-  box-shadow: 0 0 15px rgba(139,92,246,0.2);
-}
-
-.chat-system-msg {
-  text-align: center;
-  font-size: 8px;
-  color: var(--muted);
-  padding: 3px;
-  font-family: 'Orbitron', monospace;
-  letter-spacing: 1px;
-}
-
-/* ==========================================
-   PANEL DE DEBUG
-   ========================================== */
-#debugPanel {
-  position: fixed;
-  bottom: 8px;
-  left: 8px;
-  right: 8px;
-  max-height: 140px;
-  overflow-y: auto;
-  background: rgba(0,0,0,0.95);
-  border: 1px solid rgba(255,34,102,0.4);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-family: 'Orbitron', monospace;
-  font-size: 8px;
-  color: #ff6688;
-  line-height: 1.7;
-  z-index: 999;
-  display: none;
-  word-break: break-all;
-}
-
-#debugPanel .dbg-ok { color: #00ffaa; }
-#debugPanel .dbg-err { color: #ff2266; }
-#debugPanel .dbg-info { color: #ffaa00; }
-
-#debugPanel::-webkit-scrollbar { width: 3px; }
-#debugPanel::-webkit-scrollbar-thumb { background: rgba(255,34,102,0.3); border-radius: 3px; }
-
-/* ==========================================
-   RESPONSIVE - MÓVILES
-   ========================================== */
-@media (max-width: 600px) {
-  body {
-    justify-content: flex-start;
-  }
-  #gameWrapper {
-    border-radius: 0;
-    border: none;
-    max-width: 100%;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    aspect-ratio: unset;
-  }
-  #hud {
-    padding: 6px 8px;
-  }
-  .hud-value { font-size: 15px; }
-  .hud-value.best { font-size: 10px; }
-  .hud-btn { width: 28px; height: 28px; font-size: 11px; }
-  .hud-label { font-size: 8px; }
-  .global-stats { grid-template-columns: repeat(3, 1fr); gap: 4px; }
-  .history-table { font-size: 8px; }
-  .name-input { width: 170px; font-size: 12px; }
-  .btn { padding: 8px 14px; font-size: 8px; letter-spacing: 1.5px; }
-  .chat-msg, .pm-msg { max-width: 88%; }
-  .chat-input, .pm-input { font-size: 12px; padding: 6px 10px; }
-  .chat-hint { font-size: 7px; padding: 3px 10px; }
-  .overlay h1 { letter-spacing: 2px; }
-  .subtitle { letter-spacing: 2px; margin-bottom: 6px; }
-  .online-badge { margin-bottom: 4px; font-size: 9px; padding: 3px 10px; }
-  .name-input-wrap { margin-bottom: 6px; }
-  .stats-row { gap: 12px; margin-bottom: 6px; }
-  .controls-hint { font-size: 8px; margin-top: 6px; }
-  .version-text { font-size: 7px; }
-  .auth-box { max-width: 260px; }
-  .auth-field input { font-size: 12px; padding: 5px 8px; }
-  .friend-card { padding: 5px 8px; }
-  .friend-name { font-size: 9px; }
-  #authScreen { justify-content: center !important; padding: 14px !important; }
-  #debugPanel { font-size: 7px; max-height: 90px; padding: 6px 8px; }
-}
-
-@media (max-height: 500px) and (max-width: 600px) {
-  .chat-hint { display: none; }
-  .chat-header, .pm-header { padding: 5px 10px; }
-  .chat-input-area, .pm-input-area { padding: 5px 8px; }
-  .chat-input, .pm-input { padding: 5px 8px; font-size: 11px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
+:root{--bg:#0a0a12;--fg:#e0e8ff;--accent:#00ffaa;--accent2:#ff2266;--accent3:#ffaa00;--border:rgba(0,255,170,.15);--muted:rgba(224,232,255,.35);--purple:#8b5cf6;--cyan:#00ddff}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:'Rajdhani',sans-serif;overflow:hidden;height:100vh;height:100dvh;width:100vw;display:flex;flex-direction:column;align-items:center;justify-content:center}
+body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at 20% 50%,rgba(0,255,170,.04) 0%,transparent 50%),radial-gradient(ellipse at 80% 20%,rgba(255,34,102,.04) 0%,transparent 50%),radial-gradient(ellipse at 50% 80%,rgba(255,170,0,.03) 0%,transparent 50%);animation:bgDrift 20s ease-in-out infinite alternate;z-index:0;pointer-events:none}
+@keyframes bgDrift{0%{transform:translate(0,0) rotate(0deg)}100%{transform:translate(-3%,2%) rotate(3deg)}}
+#gameWrapper{position:relative;z-index:1;width:100%;max-width:900px;aspect-ratio:16/9;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 0 20px rgba(0,255,170,.3),0 0 60px rgba(0,0,0,.6);background:#060610;flex-shrink:0}
+canvas{display:block;width:100%;height:100%}
+#hud{position:absolute;top:0;left:0;right:0;padding:12px 20px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:10;font-family:'Orbitron',monospace}
+.hud-item{display:flex;flex-direction:column;align-items:center;gap:2px}
+.hud-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:2px}
+.hud-value{font-size:22px;font-weight:900;color:var(--accent);text-shadow:0 0 12px rgba(0,255,170,.5)}
+.hud-value.coins{color:var(--accent3);text-shadow:0 0 12px rgba(255,170,0,.5)}
+.hud-value.best{color:var(--accent2);text-shadow:0 0 12px rgba(255,34,102,.5);font-size:16px}
+.hud-player{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:2px;text-shadow:0 0 8px rgba(0,255,170,.3);opacity:.7}
+.hud-btn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:all;transition:all .2s;font-size:14px;position:relative}
+.hud-btn.friends{background:rgba(0,221,255,.08);border:1px solid rgba(0,221,255,.2);color:var(--cyan)}
+.hud-btn.friends:hover{background:rgba(0,221,255,.2);box-shadow:0 0 12px rgba(0,221,255,.3)}
+.hud-btn.chat{background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);color:var(--purple)}
+.hud-btn.chat:hover{background:rgba(139,92,246,.2);box-shadow:0 0 12px rgba(139,92,246,.3)}
+.notif-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:var(--accent2);color:#fff;font-size:9px;font-weight:900;font-family:'Orbitron',monospace;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 0 8px rgba(255,34,102,.5)}
+.notif-badge.hidden{display:none}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,6,16,.94);backdrop-filter:blur(10px);z-index:20;transition:opacity .4s ease;padding:14px;overflow-y:auto}
+.overlay.hidden{opacity:0;pointer-events:none}
+.overlay h1{font-family:'Orbitron',monospace;font-size:clamp(22px,5vw,48px);font-weight:900;color:var(--accent);text-shadow:0 0 30px rgba(0,255,170,.4);margin-bottom:4px;letter-spacing:4px}
+.overlay h1 span{color:var(--accent2);text-shadow:0 0 30px rgba(255,34,102,.4)}
+.subtitle{font-size:clamp(11px,2vw,16px);color:var(--muted);margin-bottom:10px;font-weight:300;letter-spacing:3px}
+.name-input-wrap{margin-bottom:8px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.name-input-wrap label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:2px}
+.name-input{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;padding:8px 16px;border:2px solid var(--border);border-radius:8px;background:rgba(0,255,170,.04);color:var(--accent);text-align:center;width:200px;outline:none;letter-spacing:2px;transition:all .2s}
+.name-input:focus{border-color:var(--accent);box-shadow:0 0 20px rgba(0,255,170,.15);background:rgba(0,255,170,.08)}
+.name-input::placeholder{color:rgba(0,255,170,.2)}
+.online-badge{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1.5px;margin-bottom:6px;padding:4px 12px;border-radius:20px;border:1px solid;transition:all .3s}
+.online-badge.connected{color:var(--accent);border-color:rgba(0,255,170,.2);background:rgba(0,255,170,.05)}
+.online-badge.disconnected{color:var(--accent2);border-color:rgba(255,34,102,.2);background:rgba(255,34,102,.05)}
+.online-badge.checking{color:var(--accent3);border-color:rgba(255,170,0,.2);background:rgba(255,170,0,.05)}
+.online-badge .dot{width:6px;height:6px;border-radius:50%;animation:pulse 2s infinite}
+.online-badge.connected .dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.online-badge.disconnected .dot{background:var(--accent2);box-shadow:0 0 6px var(--accent2)}
+.online-badge.checking .dot{background:var(--accent3);box-shadow:0 0 6px var(--accent3)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:6px}
+.btn{font-family:'Orbitron',monospace;font-size:clamp(9px,1.5vw,12px);font-weight:700;padding:10px 20px;border:2px solid var(--accent);background:rgba(0,255,170,.08);color:var(--accent);border-radius:8px;cursor:pointer;letter-spacing:2px;text-transform:uppercase;transition:all .2s ease;pointer-events:all;white-space:nowrap}
+.btn:hover{background:rgba(0,255,170,.18);box-shadow:0 0 30px rgba(0,255,170,.25);transform:translateY(-2px)}
+.btn:active{transform:translateY(0)}
+.btn.secondary{border-color:var(--accent3);color:var(--accent3);background:rgba(255,170,0,.06)}
+.btn.secondary:hover{background:rgba(255,170,0,.15)}
+.btn.chat-btn{border-color:var(--purple);color:var(--purple);background:rgba(139,92,246,.06)}
+.btn.chat-btn:hover{background:rgba(139,92,246,.15)}
+.btn.pm-btn{border-color:var(--cyan);color:var(--cyan);background:rgba(0,221,255,.06)}
+.btn.pm-btn:hover{background:rgba(0,221,255,.15)}
+.btn.danger{border-color:var(--accent2);color:var(--accent2);background:rgba(255,34,102,.06)}
+.btn.danger:hover{background:rgba(255,34,102,.15)}
+.btn.tiny{padding:3px 8px;font-size:7px;letter-spacing:.5px;border-width:1px}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+.controls-hint{margin-top:8px;font-size:10px;color:rgba(224,232,255,.18);text-align:center;line-height:1.8}
+.controls-hint kbd{display:inline-block;padding:2px 7px;border:1px solid rgba(224,232,255,.1);border-radius:4px;background:rgba(224,232,255,.03);font-family:'Orbitron',monospace;font-size:9px;color:rgba(224,232,255,.3);margin:0 2px}
+.final-score{font-family:'Orbitron',monospace;font-size:clamp(30px,7vw,60px);font-weight:900;color:var(--fg);margin:4px 0 2px}
+.score-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:4px;margin-bottom:8px}
+.stats-row{display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;justify-content:center}
+.stat{text-align:center}
+.stat-val{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:var(--accent3)}
+.stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:2px}
+.playing-as{font-size:10px;color:var(--muted);letter-spacing:1.5px;margin-bottom:4px}
+.playing-as strong{color:var(--accent)}
+.user-coins-display{font-size:11px;color:var(--accent3);font-family:'Orbitron',monospace;letter-spacing:1px;margin-bottom:6px}
+.user-coins-display i{margin-right:4px}
+.history-header{display:flex;align-items:center;gap:12px;margin-bottom:10px;width:100%;max-width:700px}
+.history-header h1{margin:0;font-size:clamp(14px,3vw,22px)}
+.back-btn{width:34px;height:34px;border:1px solid var(--border);background:rgba(0,255,170,.05);color:var(--accent);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;flex-shrink:0}
+.back-btn:hover{background:rgba(0,255,170,.15)}
+.tabs{display:flex;gap:0;margin-bottom:10px;width:100%;max-width:700px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.tab-btn{flex:1;padding:8px 6px;font-family:'Orbitron',monospace;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;background:rgba(0,0,0,.3);color:var(--muted)}
+.tab-btn:hover{background:rgba(0,255,170,.05)}
+.tab-btn.active{background:rgba(0,255,170,.1);color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.tab-content{display:none;width:100%;max-width:700px}
+.tab-content.active{display:block}
+.global-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:5px;margin-bottom:10px}
+.gs-card{background:rgba(0,255,170,.04);border:1px solid var(--border);border-radius:8px;padding:8px 4px;text-align:center}
+.gs-card .gs-val{font-family:'Orbitron',monospace;font-size:clamp(11px,2vw,18px);font-weight:900;color:var(--accent);text-shadow:0 0 10px rgba(0,255,170,.3)}
+.gs-card .gs-lbl{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-top:2px}
+.gs-card.gold .gs-val{color:var(--accent3);text-shadow:0 0 10px rgba(255,170,0,.3)}
+.gs-card.pink .gs-val{color:var(--accent2);text-shadow:0 0 10px rgba(255,34,102,.3)}
+.history-table-wrap{max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,.3);margin-bottom:10px}
+.history-table-wrap::-webkit-scrollbar{width:4px}
+.history-table-wrap::-webkit-scrollbar-thumb{background:rgba(0,255,170,.2);border-radius:4px}
+.history-table{width:100%;border-collapse:collapse;font-size:10px}
+.history-table thead{position:sticky;top:0;z-index:2}
+.history-table th{background:rgba(0,255,170,.08);color:var(--accent);font-family:'Orbitron',monospace;font-size:7px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 3px;text-align:center;border-bottom:1px solid var(--border)}
+.history-table td{padding:4px 3px;text-align:center;color:var(--fg);border-bottom:1px solid rgba(255,255,255,.03)}
+.history-table tr:hover td{background:rgba(0,255,170,.03)}
+.history-table .me-row td{color:var(--accent);font-weight:700;background:rgba(0,255,170,.05)}
+.rank-badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-family:'Orbitron',monospace;font-size:7px;font-weight:900}
+.rank-1{background:rgba(255,170,0,.2);color:#ffaa00;border:1px solid rgba(255,170,0,.4)}
+.rank-2{background:rgba(192,192,192,.15);color:#c0c0c0;border:1px solid rgba(192,192,192,.3)}
+.rank-3{background:rgba(205,127,50,.15);color:#cd7f32;border:1px solid rgba(205,127,50,.3)}
+.rank-n{background:rgba(255,255,255,.04);color:var(--muted);border:1px solid rgba(255,255,255,.06)}
+.empty-history{color:var(--muted);font-size:11px;padding:16px;text-align:center;letter-spacing:1px}
+.loading-text{color:var(--muted);font-size:10px;padding:14px;text-align:center}
+.loading-text i{margin-right:6px;animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+#newRecord{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);font-family:'Orbitron',monospace;font-size:clamp(14px,3vw,24px);font-weight:900;color:var(--accent3);text-shadow:0 0 30px rgba(255,170,0,.6);letter-spacing:6px;z-index:25;pointer-events:none;opacity:0;transition:all .5s cubic-bezier(.34,1.56,.64,1)}
+#newRecord.show{transform:translate(-50%,-50%) scale(1);opacity:1}
+.save-flash{position:absolute;bottom:10px;right:14px;font-size:10px;color:rgba(0,255,170,.5);font-family:'Orbitron',monospace;letter-spacing:2px;z-index:15;pointer-events:none;opacity:0;transition:opacity .3}
+.save-flash.show{opacity:1}
+.version-text{position:relative;z-index:1;font-family:'Orbitron',monospace;font-size:9px;color:rgba(224,232,255,.1);letter-spacing:3px;text-transform:uppercase;padding:4px 0 2px;flex-shrink:0}
+#authScreen{justify-content:flex-start!important;padding:6px 14px!important;overflow-y:auto!important}
+.auth-box{width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.auth-box h1{font-size:clamp(16px,3.5vw,24px);margin-bottom:0}
+.auth-tabs{display:flex;gap:0;width:100%;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:2px}
+.auth-tab{flex:1;padding:6px;font-family:'Orbitron',monospace;font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border:none;cursor:pointer;transition:all .2s;background:rgba(0,0,0,.3);color:var(--muted)}
+.auth-tab.active{background:rgba(0,255,170,.1);color:var(--accent)}
+.auth-form{width:100%;display:none;flex-direction:column;align-items:center;gap:4px}
+.auth-form.active{display:flex}
+.auth-field{width:100%;display:flex;flex-direction:column;gap:1px}
+.auth-field label{font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-family:'Orbitron',monospace}
+.auth-field input{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:rgba(0,255,170,.03);color:var(--fg);outline:none;transition:all .2s;width:100%}
+.auth-field input:focus{border-color:var(--accent);box-shadow:0 0 12px rgba(0,255,170,.1);background:rgba(0,255,170,.06)}
+.auth-field input::placeholder{color:rgba(224,232,255,.15)}
+.auth-error{font-size:8px;color:var(--accent2);font-family:'Orbitron',monospace;letter-spacing:.5px;text-align:center;min-height:12px;max-width:100%;word-break:break-word;line-height:1.3}
+.auth-divider{display:flex;align-items:center;gap:8px;width:100%;margin:2px 0}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.auth-divider span{font-size:7px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-family:'Orbitron',monospace}
+.logged-in-info{font-size:9px;color:var(--accent);font-family:'Orbitron',monospace;letter-spacing:1px;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.logged-in-info .logout-link{color:var(--accent2);cursor:pointer;text-decoration:underline;font-size:8px}
+.friends-search{width:100%;position:relative;margin-bottom:8px}
+.friends-search input{width:100%;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;padding:7px 12px 7px 32px;border:1px solid var(--border);border-radius:8px;background:rgba(0,221,255,.03);color:var(--fg);outline:none;transition:all .2s}
+.friends-search input:focus{border-color:var(--cyan);box-shadow:0 0 15px rgba(0,221,255,.1)}
+.friends-search input::placeholder{color:rgba(224,232,255,.15)}
+.friends-search i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px}
+.friends-section-title{font-size:9px;color:var(--muted);font-family:'Orbitron',monospace;letter-spacing:2px;text-transform:uppercase;margin:6px 0 4px;width:100%}
+.friend-card{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,.2);margin-bottom:4px;width:100%;transition:all .2s}
+.friend-card:hover{background:rgba(0,221,255,.04);border-color:rgba(0,221,255,.15)}
+.friend-avatar{width:28px;height:28px;border-radius:50%;background:rgba(0,221,255,.1);border:1px solid rgba(0,221,255,.2);display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:10px;font-weight:900;color:var(--cyan);flex-shrink:0}
+.friend-info{flex:1;min-width:0}
+.friend-name{font-family:'Orbitron',monospace;font-size:10px;font-weight:700;color:var(--fg);letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.friend-meta{font-size:8px;color:var(--muted);letter-spacing:.5px}
+.friend-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.friend-status-dot.online{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.friend-status-dot.offline{background:rgba(224,232,255,.15)}
+.friend-actions{display:flex;gap:4px;flex-shrink:0}
+.friends-list{max-height:180px;overflow-y:auto;width:100%}
+.friends-list::-webkit-scrollbar{width:3px}
+.friends-list::-webkit-scrollbar-thumb{background:rgba(0,221,255,.2);border-radius:4px}
+.no-friends{color:var(--muted);font-size:10px;padding:12px;text-align:center;letter-spacing:1px}
+#pmScreen{padding:0;justify-content:stretch}
+.pm-header{flex-shrink:0;width:100%;display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid rgba(0,221,255,.15);background:rgba(0,221,255,.04)}
+.pm-header h1{margin:0;font-size:clamp(12px,2.2vw,18px);color:var(--cyan);text-shadow:0 0 15px rgba(0,221,255,.3);flex:1}
+.pm-close-btn{width:30px;height:30px;border:1px solid var(--border);background:rgba(255,34,102,.05);color:var(--accent2);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .2s}
+.pm-close-btn:hover{background:rgba(255,34,102,.15)}
+.pm-messages{flex:1;overflow-y:auto;width:100%;padding:8px 10px;display:flex;flex-direction:column;gap:5px}
+.pm-messages::-webkit-scrollbar{width:3px}
+.pm-messages::-webkit-scrollbar-thumb{background:rgba(0,221,255,.2);border-radius:4px}
+.pm-msg{max-width:80%;padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,.3);word-break:break-word}
+.pm-msg.mine{margin-left:auto;border-color:rgba(0,221,255,.25);background:rgba(0,221,255,.05)}
+.pm-msg.other{margin-left:0}
+.pm-msg-header{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.pm-msg-name{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;letter-spacing:1px}
+.pm-msg.mine .pm-msg-name{color:var(--cyan)}
+.pm-msg.other .pm-msg-name{color:var(--muted)}
+.pm-msg-time{font-size:7px;color:rgba(224,232,255,.15);margin-left:auto}
+.pm-msg-text{font-size:12px;line-height:1.5;color:var(--fg)}
+.pm-input-area{flex-shrink:0;width:100%;padding:8px 10px;border-top:1px solid var(--border);background:rgba(0,0,0,.3);display:flex;gap:6px;align-items:center}
+.pm-input{flex:1;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:rgba(0,221,255,.04);color:var(--fg);outline:none;transition:all .2s}
+.pm-input:focus{border-color:var(--cyan);box-shadow:0 0 15px rgba(0,221,255,.1)}
+.pm-input::placeholder{color:rgba(0,221,255,.2)}
+.pm-send-btn{width:36px;height:36px;border:2px solid var(--cyan);background:rgba(0,221,255,.08);color:var(--cyan);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .2s;flex-shrink:0}
+.pm-send-btn:hover{background:rgba(0,221,255,.2);box-shadow:0 0 15px rgba(0,221,255,.2)}
+#chatScreen{padding:0;justify-content:stretch}
+.chat-header{flex-shrink:0;width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--border);background:rgba(139,92,246,.05)}
+.chat-header-left{display:flex;align-items:center;gap:8px}
+.chat-header-left h1{margin:0;font-size:clamp(12px,2.2vw,18px);color:var(--purple);text-shadow:0 0 15px rgba(139,92,246,.3)}
+.chat-online-count{font-size:9px;color:var(--muted);font-family:'Orbitron',monospace;letter-spacing:1px}
+.chat-close-btn{width:30px;height:30px;border:1px solid var(--border);background:rgba(255,34,102,.05);color:var(--accent2);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .2s}
+.chat-close-btn:hover{background:rgba(255,34,102,.15)}
+.chat-hint{flex-shrink:0;width:100%;padding:5px 14px;background:rgba(139,92,246,.03);border-bottom:1px solid rgba(139,92,246,.08);font-size:9px;color:rgba(139,92,246,.45);text-align:center;letter-spacing:1px;font-family:'Orbitron',monospace}
+.chat-hint strong{color:rgba(139,92,246,.75)}
+.chat-messages{flex:1;overflow-y:auto;width:100%;padding:8px 10px;display:flex;flex-direction:column;gap:5px}
+.chat-messages::-webkit-scrollbar{width:3px}
+.chat-messages::-webkit-scrollbar-thumb{background:rgba(139,92,246,.2);border-radius:4px}
+.chat-msg{max-width:80%;padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,.3);word-break:break-word}
+.chat-msg.mine{margin-left:auto;border-color:rgba(0,255,170,.25);background:rgba(0,255,170,.05)}
+.chat-msg.ai{margin-left:0;border-color:rgba(255,34,102,.3);background:rgba(255,34,102,.06);max-width:85%}
+.chat-msg.other{margin-left:0}
+.chat-msg-header{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.chat-msg-name{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;letter-spacing:1px}
+.chat-msg.mine .chat-msg-name{color:var(--accent)}
+.chat-msg.ai .chat-msg-name{color:var(--accent2)}
+.chat-msg.ai .chat-msg-name i{margin-right:3px;font-size:7px}
+.chat-msg.other .chat-msg-name{color:var(--muted)}
+.chat-msg-time{font-size:7px;color:rgba(224,232,255,.15);margin-left:auto}
+.chat-msg-text{font-size:12px;line-height:1.5;color:var(--fg)}
+.chat-msg.ai .chat-msg-text{color:rgba(255,200,220,.9)}
+.typing-indicator{display:flex;align-items:center;gap:6px;padding:5px 10px;font-size:9px;color:var(--accent2);font-family:'Orbitron',monospace;letter-spacing:1px;flex-shrink:0}
+.typing-indicator.hidden{display:none}
+.typing-dots{display:flex;gap:3px}
+.typing-dots span{width:5px;height:5px;border-radius:50%;background:var(--accent2);animation:typingBounce 1.4s infinite}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes typingBounce{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+.chat-input-area{flex-shrink:0;width:100%;padding:8px 10px;border-top:1px solid var(--border);background:rgba(0,0,0,.3);display:flex;gap:6px;align-items:center}
+.chat-input{flex:1;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:rgba(139,92,246,.04);color:var(--fg);outline:none;transition:all .2s}
+.chat-input:focus{border-color:var(--purple);box-shadow:0 0 15px rgba(139,92,246,.1)}
+.chat-input::placeholder{color:rgba(139,92,246,.2)}
+.chat-send-btn{width:36px;height:36px;border:2px solid var(--purple);background:rgba(139,92,246,.08);color:var(--purple);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .2s;flex-shrink:0}
+.chat-send-btn:hover{background:rgba(139,92,246,.2);box-shadow:0 0 15px rgba(139,92,246,.2)}
+.chat-system-msg{text-align:center;font-size:8px;color:var(--muted);padding:3px;font-family:'Orbitron',monospace;letter-spacing:1px}
+#debugPanel{position:fixed;bottom:8px;left:8px;right:8px;max-height:140px;overflow-y:auto;background:rgba(0,0,0,.95);border:1px solid rgba(255,34,102,.4);border-radius:8px;padding:8px 10px;font-family:'Orbitron',monospace;font-size:8px;color:#ff6688;line-height:1.7;z-index:999;display:none;word-break:break-all}
+#debugPanel .dbg-ok{color:#00ffaa}
+#debugPanel .dbg-err{color:#ff2266}
+#debugPanel .dbg-info{color:#ffaa00}
+#debugPanel::-webkit-scrollbar{width:3px}
+#debugPanel::-webkit-scrollbar-thumb{background:rgba(255,34,102,.3);border-radius:3px}
+@media(max-width:600px){body{justify-content:flex-start}#gameWrapper{border-radius:0;border:none;max-width:100%;width:100vw;height:100vh;height:100dvh;aspect-ratio:unset}#hud{padding:6px 8px}.hud-value{font-size:15px}.hud-value.best{font-size:10px}.hud-btn{width:28px;height:28px;font-size:11px}.hud-label{font-size:8px}.global-stats{grid-template-columns:repeat(3,1fr);gap:4px}.history-table{font-size:8px}.name-input{width:170px;font-size:12px}.btn{padding:8px 14px;font-size:8px;letter-spacing:1.5px}.chat-msg,.pm-msg{max-width:88%}.chat-input,.pm-input{font-size:12px;padding:6px 10px}.chat-hint{font-size:7px;padding:3px 10px}.overlay h1{letter-spacing:2px}.subtitle{letter-spacing:2px;margin-bottom:6px}.online-badge{margin-bottom:4px;font-size:9px;padding:3px 10px}.name-input-wrap{margin-bottom:6px}.stats-row{gap:12px;margin-bottom:6px}.controls-hint{font-size:8px;margin-top:6px}.version-text{font-size:7px}.auth-box{max-width:260px}.auth-field input{font-size:12px;padding:5px 8px}.friend-card{padding:5px 8px}.friend-name{font-size:9px}#authScreen{justify-content:center!important;padding:14px!important}#debugPanel{font-size:7px;max-height:90px;padding:6px 8px}}
+@media(max-height:500px) and (max-width:600px){.chat-hint{display:none}.chat-header,.pm-header{padding:5px 10px}.chat-input-area,.pm-input-area{padding:5px 8px}.chat-input,.pm-input{padding:5px 8px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
 <div id="gameWrapper">
-  <canvas id="gameCanvas"></canvas>
+<canvas id="gameCanvas"></canvas>
 
-  <!-- ==========================================
-       HUD - Indicadores del juego
-       ========================================== -->
-  <div id="hud" class="hidden">
-    <div class="hud-item">
-      <span class="hud-label">Puntos</span>
-      <span class="hud-value" id="hudScore">0</span>
-    </div>
-    <div class="hud-item">
-      <span class="hud-label">Monedas</span>
-      <span class="hud-value coins" id="hudCoins">0</span>
-    </div>
-    <div class="hud-item">
-      <span class="hud-label">Mejor</span>
-      <span class="hud-value best" id="hudBest">0</span>
-    </div>
-    <div class="hud-item">
-      <span class="hud-player" id="hudPlayer">JUGADOR</span>
-    </div>
-    <div class="hud-btn hud-friends-btn" id="hudFriendsBtn" title="Amigos">
-      <i class="fa-solid fa-user-group"></i>
-      <span class="notif-badge hidden" id="friendNotifBadge">0</span>
-    </div>
-    <div class="hud-btn hud-chat-btn" id="hudChatBtn" title="Chat">
-      <i class="fa-solid fa-comments"></i>
-    </div>
-  </div>
-
-  <!-- ==========================================
-       PANTALLA DE AUTENTICACIÓN
-       ========================================== -->
-  <div class="overlay" id="authScreen">
-    <div class="auth-box">
-      <h1>NEON <span>DASH</span></h1>
-      <p class="subtitle">Corre. Salta. Sobrevive.</p>
-      <div class="online-badge checking" id="authOnlineBadge">
-        <span class="dot"></span>
-        <span id="authOnlineText">Verificando...</span>
-      </div>
-
-      <!-- Tabs de Login / Registro -->
-      <div class="auth-tabs">
-        <button type="button" class="auth-tab active" data-authtab="login">Iniciar Sesion</button>
-        <button type="button" class="auth-tab" data-authtab="register">Registrarse</button>
-      </div>
-
-      <!-- Formulario de Login -->
-      <div class="auth-form active" id="loginForm">
-        <div class="auth-field">
-          <label>Correo electronico</label>
-          <input type="email" id="loginEmail" placeholder="tu@correo.com" autocomplete="email">
-        </div>
-        <div class="auth-field">
-          <label>Clave</label>
-          <input type="password" id="loginPass" placeholder="Tu clave" autocomplete="current-password">
-        </div>
-        <div class="auth-error" id="loginError"></div>
-        <button type="button" class="btn" id="btnLogin" style="width:100%">ENTRAR</button>
-      </div>
-
-      <!-- Formulario de Registro -->
-      <div class="auth-form" id="registerForm">
-        <div class="auth-field">
-          <label>Nombre de usuario</label>
-          <input type="text" id="regUser" placeholder="CORREDOR" maxlength="15" autocomplete="off">
-        </div>
-        <div class="auth-field">
-          <label>Correo electronico</label>
-          <input type="email" id="regEmail" placeholder="tu@correo.com" autocomplete="email">
-        </div>
-        <div class="auth-field">
-          <label>Clave (min 6)</label>
-          <input type="password" id="regPass" placeholder="Tu clave" autocomplete="new-password">
-        </div>
-        <div class="auth-field">
-          <label>Confirmar clave</label>
-          <input type="password" id="regPass2" placeholder="Repite la clave" autocomplete="new-password">
-        </div>
-        <div class="auth-error" id="regError"></div>
-        <button type="button" class="btn" id="btnRegister" style="width:100%">CREAR CUENTA</button>
-      </div>
-
-      <!-- Separador y botón de invitado -->
-      <div class="auth-divider"><span>o</span></div>
-      <button type="button" class="btn secondary" id="btnGuest" style="width:100%">
-        <i class="fa-solid fa-right-to-bracket"></i> JUGAR COMO INVITADO
-      </button>
-    </div>
-  </div>
-
-  <!-- ==========================================
-       PANTALLA DE INICIO
-       ========================================== -->
-  <div class="overlay hidden" id="startScreen">
-    <h1>NEON <span>DASH</span></h1>
-    <p class="subtitle">Corre. Salta. Sobrevive.</p>
-
-    <!-- Info de sesión activa -->
-    <div class="logged-in-info" id="loggedInInfo"></div>
-
-    <!-- Monedas del usuario -->
-    <div class="user-coins-display hidden" id="userCoinsDisplay">
-      <i class="fa-solid fa-coins"></i>
-      <span id="userTotalCoins">0</span> monedas
-    </div>
-
-    <!-- Estado de conexión -->
-    <div class="online-badge checking" id="onlineBadge">
-      <span class="dot"></span>
-      <span id="onlineText">Verificando...</span>
-    </div>
-
-    <!-- Campo de nombre para invitados -->
-    <div class="name-input-wrap" id="nameInputWrap">
-      <label for="playerName">Tu nombre</label>
-      <input type="text" class="name-input" id="playerName" placeholder="JUGADOR" maxlength="15" autocomplete="off">
-    </div>
-
-    <!-- Botones principales -->
-    <div class="btn-row">
-      <button type="button" class="btn" id="btnStart">JUGAR</button>
-      <button type="button" class="btn secondary" id="btnHistory">
-        <i class="fa-solid fa-trophy"></i> RANKING
-      </button>
-      <button type="button" class="btn chat-btn" id="btnChat">
-        <i class="fa-solid fa-comments"></i> CHAT
-      </button>
-      <button type="button" class="btn pm-btn" id="btnFriends">
-        <i class="fa-solid fa-user-group"></i> AMIGOS
-      </button>
-    </div>
-    <div class="controls-hint">
-      <kbd>ESPACIO</kbd> o <kbd>TOQUE</kbd> para saltar
-    </div>
-  </div>
-
-  <!-- ==========================================
-       PANTALLA DE GAME OVER
-       ========================================== -->
-  <div class="overlay hidden" id="gameOverScreen">
-    <h1>FIN DEL <span>JUEGO</span></h1>
-    <div class="playing-as">Jugando como: <strong id="goPlayerName">JUGADOR</strong></div>
-    <div class="score-label">Puntuacion</div>
-    <div class="final-score" id="finalScore">0</div>
-    <div class="stats-row">
-      <div class="stat">
-        <div class="stat-val" id="finalCoins">0</div>
-        <div class="stat-lbl">Monedas</div>
-      </div>
-      <div class="stat">
-        <div class="stat-val" id="finalBest">0</div>
-        <div class="stat-lbl">Mejor</div>
-      </div>
-      <div class="stat">
-        <div class="stat-val" id="finalSpeed">0</div>
-        <div class="stat-lbl">Vel.max</div>
-      </div>
-      <div class="stat">
-        <div class="stat-val" id="finalTime">0s</div>
-        <div class="stat-lbl">Tiempo</div>
-      </div>
-    </div>
-    <div class="btn-row">
-      <button type="button" class="btn" id="btnRestart">REINTENTAR</button>
-      <button type="button" class="btn secondary" id="btnHistory2">
-        <i class="fa-solid fa-trophy"></i> RANKING
-      </button>
-      <button type="button" class="btn chat-btn" id="btnChat2">
-        <i class="fa-solid fa-comments"></i> CHAT
-      </button>
-    </div>
-  </div>
-
-  <!-- ==========================================
-       PANTALLA DE RANKING / HISTORIAL
-       ========================================== -->
-  <div class="overlay hidden" id="historyScreen">
-    <div class="history-header">
-      <button type="button" class="back-btn" id="btnBack">
-        <i class="fa-solid fa-arrow-left"></i>
-      </button>
-      <h1>
-        <span style="color:var(--accent3)">
-          <i class="fa-solid fa-trophy"></i>
-        </span> RANKING
-      </h1>
-    </div>
-
-    <!-- Tabs de Online / Local / Amigos -->
-    <div class="tabs">
-      <button type="button" class="tab-btn active" data-tab="global">Online</button>
-      <button type="button" class="tab-btn" data-tab="local">Local</button>
-      <button type="button" class="tab-btn" data-tab="friends">Amigos</button>
-    </div>
-
-    <!-- Tab de Ranking Online -->
-    <div class="tab-content active" id="tabGlobal">
-      <div class="history-table-wrap">
-        <table class="history-table">
-          <thead>
-            <tr>
-              <th>#</th><th>Jugador</th><th>Puntos</th><th>Monedas</th><th>Vel</th><th>Tiempo</th><th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody id="globalBody">
-            <tr>
-              <td colspan="7" class="loading-text">
-                <i class="fa-solid fa-circle-notch"></i> Cargando...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Tab de Historial Local -->
-    <div class="tab-content" id="tabLocal">
-      <div class="global-stats">
-        <div class="gs-card"><div class="gs-val" id="lsGames">0</div><div class="gs-lbl">Partidas</div></div>
-        <div class="gs-card pink"><div class="gs-val" id="lsBest">0</div><div class="gs-lbl">Mejor</div></div>
-        <div class="gs-card gold"><div class="gs-val" id="lsCoins">0</div><div class="gs-lbl">Monedas</div></div>
-        <div class="gs-card"><div class="gs-val" id="lsAvg">0</div><div class="gs-lbl">Promedio</div></div>
-        <div class="gs-card"><div class="gs-val" id="lsTime">0s</div><div class="gs-lbl">Tiempo</div></div>
-      </div>
-      <div class="history-table-wrap">
-        <table class="history-table">
-          <thead>
-            <tr>
-              <th>#</th><th>Fecha</th><th>Puntos</th><th>Monedas</th><th>Vel</th><th>Tiempo</th>
-            </tr>
-          </thead>
-          <tbody id="localBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Tab de Amigos -->
-    <div class="tab-content" id="tabFriends">
-      <div class="friends-search">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="friendSearchInput" placeholder="Buscar jugadores..." maxlength="30" autocomplete="off">
-      </div>
-      <div id="friendSearchResults"></div>
-      <div class="friends-section-title" id="requestsTitle" style="display:none">Solicitudes</div>
-      <div class="friends-list" id="requestsList"></div>
-      <div class="friends-section-title">Mis amigos</div>
-      <div class="friends-list" id="friendsList">
-        <div class="no-friends">Inicia sesion para ver amigos</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==========================================
-       PANTALLA DE CHAT GRUPAL
-       ========================================== -->
-  <div class="overlay hidden" id="chatScreen">
-    <div class="chat-header">
-      <div class="chat-header-left">
-        <h1><i class="fa-solid fa-comments"></i> CHAT GRUPAL</h1>
-        <span class="chat-online-count" id="chatOnlineCount">--</span>
-      </div>
-      <button type="button" class="chat-close-btn" id="btnChatClose">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-    <div class="chat-hint">
-      Escribe <strong>@juego</strong> para hablar con NEON
-    </div>
-    <div class="chat-messages" id="chatMessages">
-      <div class="chat-system-msg">Cargando...</div>
-    </div>
-    <div class="typing-indicator hidden" id="typingIndicator">
-      <div class="typing-dots"><span></span><span></span><span></span></div>
-      <span>NEON escribe...</span>
-    </div>
-    <div class="chat-input-area">
-      <input type="text" class="chat-input" id="chatInput" placeholder="Mensaje..." maxlength="300" autocomplete="off">
-      <button type="button" class="chat-send-btn" id="btnChatSend">
-        <i class="fa-solid fa-paper-plane"></i>
-      </button>
-    </div>
-  </div>
-
-  <!-- ==========================================
-       PANTALLA DE MENSAJES PRIVADOS
-       ========================================== -->
-  <div class="overlay hidden" id="pmScreen">
-    <div class="pm-header">
-      <button type="button" class="back-btn" id="btnPmBack">
-        <i class="fa-solid fa-arrow-left"></i>
-      </button>
-      <h1 id="pmTitle">
-        <i class="fa-solid fa-lock"></i> Mensaje privado
-      </h1>
-      <button type="button" class="pm-close-btn" id="btnPmClose">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-    <div class="pm-messages" id="pmMessages">
-      <div class="chat-system-msg">Cargando...</div>
-    </div>
-    <div class="pm-input-area">
-      <input type="text" class="pm-input" id="pmInput" placeholder="Mensaje..." maxlength="300" autocomplete="off">
-      <button type="button" class="pm-send-btn" id="btnPmSend">
-        <i class="fa-solid fa-paper-plane"></i>
-      </button>
-    </div>
-  </div>
-
-  <!-- Elementos flotantes -->
-  <div id="newRecord">NUEVO RECORD</div>
-  <div class="save-flash" id="saveFlash">
-    <i class="fa-solid fa-cloud-arrow-up"></i> GUARDADO
-  </div>
+<div id="hud" class="hidden">
+<div class="hud-item"><span class="hud-label">Puntos</span><span class="hud-value" id="hudScore">0</span></div>
+<div class="hud-item"><span class="hud-label">Monedas</span><span class="hud-value coins" id="hudCoins">0</span></div>
+<div class="hud-item"><span class="hud-label">Mejor</span><span class="hud-value best" id="hudBest">0</span></div>
+<div class="hud-item"><span class="hud-player" id="hudPlayer">JUGADOR</span></div>
+<div class="hud-btn hud-friends-btn" id="hudFriendsBtn" title="Amigos"><i class="fa-solid fa-user-group"></i><span class="notif-badge hidden" id="friendNotifBadge">0</span></div>
+<div class="hud-btn hud-chat-btn" id="hudChatBtn" title="Chat"><i class="fa-solid fa-comments"></i></div>
 </div>
 
-<div class="version-text">v11</div>
+<div class="overlay" id="authScreen">
+<div class="auth-box">
+<h1>NEON <span>DASH</span></h1>
+<p class="subtitle">Corre. Salta. Sobrevive.</p>
+<div class="online-badge checking" id="authOnlineBadge"><span class="dot"></span><span id="authOnlineText">Verificando...</span></div>
+<div class="auth-tabs">
+<button type="button" class="auth-tab active" data-authtab="login">Iniciar Sesion</button>
+<button type="button" class="auth-tab" data-authtab="register">Registrarse</button>
+</div>
+<div class="auth-form active" id="loginForm">
+<div class="auth-field"><label>Correo electronico</label><input type="email" id="loginEmail" placeholder="tu@correo.com" autocomplete="email"></div>
+<div class="auth-field"><label>Clave</label><input type="password" id="loginPass" placeholder="Tu clave" autocomplete="current-password"></div>
+<div class="auth-error" id="loginError"></div>
+<button type="button" class="btn" id="btnLogin" style="width:100%">ENTRAR</button>
+</div>
+<div class="auth-form" id="registerForm">
+<div class="auth-field"><label>Nombre de usuario</label><input type="text" id="regUser" placeholder="CORREDOR" maxlength="15" autocomplete="off"></div>
+<div class="auth-field"><label>Correo electronico</label><input type="email" id="regEmail" placeholder="tu@correo.com" autocomplete="email"></div>
+<div class="auth-field"><label>Clave (min 6)</label><input type="password" id="regPass" placeholder="Tu clave" autocomplete="new-password"></div>
+<div class="auth-field"><label>Confirmar clave</label><input type="password" id="regPass2" placeholder="Repite la clave" autocomplete="new-password"></div>
+<div class="auth-error" id="regError"></div>
+<button type="button" class="btn" id="btnRegister" style="width:100%">CREAR CUENTA</button>
+</div>
+<div class="auth-divider"><span>o</span></div>
+<button type="button" class="btn secondary" id="btnGuest" style="width:100%"><i class="fa-solid fa-right-to-bracket"></i> JUGAR COMO INVITADO</button>
+</div>
+</div>
 
-<!-- Panel de debug (se muestra solo si hay error) -->
+<div class="overlay hidden" id="startScreen">
+<h1>NEON <span>DASH</span></h1>
+<p class="subtitle">Corre. Salta. Sobrevive.</p>
+<div class="logged-in-info" id="loggedInInfo"></div>
+<div class="user-coins-display hidden" id="userCoinsDisplay"><i class="fa-solid fa-coins"></i><span id="userTotalCoins">0</span> monedas</div>
+<div class="online-badge checking" id="onlineBadge"><span class="dot"></span><span id="onlineText">Verificando...</span></div>
+<div class="name-input-wrap" id="nameInputWrap"><label for="playerName">Tu nombre</label><input type="text" class="name-input" id="playerName" placeholder="JUGADOR" maxlength="15" autocomplete="off"></div>
+<div class="btn-row">
+<button type="button" class="btn" id="btnStart">JUGAR</button>
+<button type="button" class="btn secondary" id="btnHistory"><i class="fa-solid fa-trophy"></i> RANKING</button>
+<button type="button" class="btn chat-btn" id="btnChat"><i class="fa-solid fa-comments"></i> CHAT</button>
+<button type="button" class="btn pm-btn" id="btnFriends"><i class="fa-solid fa-user-group"></i> AMIGOS</button>
+</div>
+<div class="controls-hint"><kbd>ESPACIO</kbd> o <kbd>TOQUE</kbd> para saltar &middot; Doble salto disponible</div>
+</div>
+
+<div class="overlay hidden" id="gameOverScreen">
+<h1>FIN DEL <span>JUEGO</span></h1>
+<div class="playing-as">Jugando como: <strong id="goPlayerName">JUGADOR</strong></div>
+<div class="score-label">Puntuacion</div>
+<div class="final-score" id="finalScore">0</div>
+<div class="stats-row">
+<div class="stat"><div class="stat-val" id="finalCoins">0</div><div class="stat-lbl">Monedas</div></div>
+<div class="stat"><div class="stat-val" id="finalBest">0</div><div class="stat-lbl">Mejor</div></div>
+<div class="stat"><div class="stat-val" id="finalSpeed">0</div><div class="stat-lbl">Vel.max</div></div>
+<div class="stat"><div class="stat-val" id="finalTime">0s</div><div class="stat-lbl">Tiempo</div></div>
+</div>
+<div class="btn-row">
+<button type="button" class="btn" id="btnRestart">REINTENTAR</button>
+<button type="button" class="btn secondary" id="btnHistory2"><i class="fa-solid fa-trophy"></i> RANKING</button>
+<button type="button" class="btn chat-btn" id="btnChat2"><i class="fa-solid fa-comments"></i> CHAT</button>
+</div>
+</div>
+
+<div class="overlay hidden" id="historyScreen">
+<div class="history-header">
+<button type="button" class="back-btn" id="btnBack"><i class="fa-solid fa-arrow-left"></i></button>
+<h1><span style="color:var(--accent3)"><i class="fa-solid fa-trophy"></i></span> RANKING</h1>
+</div>
+<div class="tabs">
+<button type="button" class="tab-btn active" data-tab="global">Online</button>
+<button type="button" class="tab-btn" data-tab="local">Local</button>
+<button type="button" class="tab-btn" data-tab="friends">Amigos</button>
+</div>
+<div class="tab-content active" id="tabGlobal">
+<div class="history-table-wrap"><table class="history-table"><thead><tr><th>#</th><th>Jugador</th><th>Puntos</th><th>Monedas</th><th>Vel</th><th>Tiempo</th><th>Fecha</th></tr></thead><tbody id="globalBody"><tr><td colspan="7" class="loading-text"><i class="fa-solid fa-circle-notch"></i> Cargando...</td></tr></tbody></table></div>
+</div>
+<div class="tab-content" id="tabLocal">
+<div class="global-stats">
+<div class="gs-card"><div class="gs-val" id="lsGames">0</div><div class="gs-lbl">Partidas</div></div>
+<div class="gs-card pink"><div class="gs-val" id="lsBest">0</div><div class="gs-lbl">Mejor</div></div>
+<div class="gs-card gold"><div class="gs-val" id="lsCoins">0</div><div class="gs-lbl">Monedas</div></div>
+<div class="gs-card"><div class="gs-val" id="lsAvg">0</div><div class="gs-lbl">Promedio</div></div>
+<div class="gs-card"><div class="gs-val" id="lsTime">0s</div><div class="gs-lbl">Tiempo</div></div>
+</div>
+<div class="history-table-wrap"><table class="history-table"><thead><tr><th>#</th><th>Fecha</th><th>Puntos</th><th>Monedas</th><th>Vel</th><th>Tiempo</th></tr></thead><tbody id="localBody"></tbody></table></div>
+</div>
+<div class="tab-content" id="tabFriends">
+<div class="friends-search"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="friendSearchInput" placeholder="Buscar jugadores..." maxlength="30" autocomplete="off"></div>
+<div id="friendSearchResults"></div>
+<div class="friends-section-title" id="requestsTitle" style="display:none">Solicitudes</div>
+<div class="friends-list" id="requestsList"></div>
+<div class="friends-section-title">Mis amigos</div>
+<div class="friends-list" id="friendsList"><div class="no-friends">Inicia sesion para ver amigos</div></div>
+</div>
+</div>
+
+<div class="overlay hidden" id="chatScreen">
+<div class="chat-header">
+<div class="chat-header-left"><h1><i class="fa-solid fa-comments"></i> CHAT GRUPAL</h1><span class="chat-online-count" id="chatOnlineCount">--</span></div>
+<button type="button" class="chat-close-btn" id="btnChatClose"><i class="fa-solid fa-xmark"></i></button>
+</div>
+<div class="chat-hint">Escribe <strong>@juego</strong> para hablar con NEON</div>
+<div class="chat-messages" id="chatMessages"><div class="chat-system-msg">Cargando...</div></div>
+<div class="typing-indicator hidden" id="typingIndicator"><div class="typing-dots"><span></span><span></span><span></span></div><span>NEON escribe...</span></div>
+<div class="chat-input-area"><input type="text" class="chat-input" id="chatInput" placeholder="Mensaje..." maxlength="300" autocomplete="off"><button type="button" class="chat-send-btn" id="btnChatSend"><i class="fa-solid fa-paper-plane"></i></button></div>
+</div>
+
+<div class="overlay hidden" id="pmScreen">
+<div class="pm-header">
+<button type="button" class="back-btn" id="btnPmBack"><i class="fa-solid fa-arrow-left"></i></button>
+<h1 id="pmTitle"><i class="fa-solid fa-lock"></i> Mensaje privado</h1>
+<button type="button" class="pm-close-btn" id="btnPmClose"><i class="fa-solid fa-xmark"></i></button>
+</div>
+<div class="pm-messages" id="pmMessages"><div class="chat-system-msg">Cargando...</div></div>
+<div class="pm-input-area"><input type="text" class="pm-input" id="pmInput" placeholder="Mensaje..." maxlength="300" autocomplete="off"><button type="button" class="pm-send-btn" id="btnPmSend"><i class="fa-solid fa-paper-plane"></i></button></div>
+</div>
+
+<div id="newRecord">NUEVO RECORD</div>
+<div class="save-flash" id="saveFlash"><i class="fa-solid fa-cloud-arrow-up"></i> GUARDADO</div>
+</div>
+<div class="version-text">v12</div>
 <div id="debugPanel"></div>
 
-<!-- ==========================================
-       SCRIPTS FIREBASE SDK
-       ========================================== -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 
 <script>
-/* ==========================================
-   UTILIDADES GENERALES
-   Funciones auxiliares reutilizables en todo el código
-   ========================================== */
+/* ================================================================
+   UTILIDADES
+   ================================================================ */
+function escapeHTML(t){if(!t)return'';var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function formatTime(ms){var s=Math.floor(ms/1000),m=Math.floor(s/60);s%=60;return(m>0?m+'m ':'')+s+'s'}
+function formatDate(ts){if(!ts)return'--';var d=new Date(ts);return d.getDate()+'/'+(d.getMonth()+1)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v))}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).substr(2,6)}
 
-/* Escapar HTML para prevenir inyección XSS */
-function escapeHTML(text) {
-  if (!text) return '';
-  var div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+/* ================================================================
+   PANEL DE DEBUG - aparece solo si hay errores
+   ================================================================ */
+var debugPanel=document.getElementById('debugPanel');
+var hasError=false;
+function debugLog(msg,type){
+  console.log('[ND] '+msg);
+  if(!debugPanel)return;
+  if(!hasError){debugPanel.style.display='block';hasError=true;}
+  var cls=type==='ok'?'dbg-ok':type==='err'?'dbg-err':'dbg-info';
+  debugPanel.innerHTML+='<div class="'+cls+'">'+escapeHTML(msg)+'</div>';
+  debugPanel.scrollTop=debugPanel.scrollHeight;
 }
 
-/* Formatear tiempo en milisegundos a formato legible */
-function formatTime(milliseconds) {
-  var seconds = Math.floor(milliseconds / 1000);
-  var minutes = Math.floor(seconds / 60);
-  seconds = seconds % 60;
-  return (minutes > 0 ? minutes + 'm ' : '') + seconds + 's';
-}
+/* ================================================================
+   VARIABLES GLOBALES
+   ================================================================ */
+var appReady=false;
+var userChoseGuest=false;
+var currentUser=null;
+var userProfile=null;
+var skipAuthListener=false;
+var firebaseConnected=false;
 
-/* Formatear timestamp a fecha corta */
-function formatDate(timestamp) {
-  if (!timestamp) return '--';
-  var date = new Date(timestamp);
-  return date.getDate() + '/' + (date.getMonth() + 1) + ' ' +
-         String(date.getHours()).padStart(2, '0') + ':' +
-         String(date.getMinutes()).padStart(2, '0');
-}
+/* API de Groq con tu clave actualizada */
+var GROQ_API_KEY='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';
+var GROQ_MODEL='llama-3.3-70b-versatile';
 
-/* Limitar un valor entre un mínimo y un máximo */
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
+var playerName='JUGADOR';
+var playerUID='';
+var totalCoins=0;
+var bestScore=0;
+var localHistory=[];
+var friendsList={};
+var friendRequests={};
+var pmTargetUser=null;
+var chatListenerRef=null;
+var pmListenerRef=null;
+var onlineCount=0;
+var lastChatMsgTime=0;
 
-/* ==========================================
-   PANEL DE DEBUG
-   Muestra información de conexión detallada para diagnosticar problemas
-   ========================================== */
-var debugPanel = document.getElementById('debugPanel');
-
-function debugLog(message, type) {
-  console.log('[ND] ' + message);
-  if (!debugPanel) return;
-  var cls = type === 'ok' ? 'dbg-ok' : type === 'err' ? 'dbg-err' : 'dbg-info';
-  debugPanel.innerHTML += '<div class="' + cls + '">' + escapeHTML(message) + '</div>';
-  debugPanel.scrollTop = debugPanel.scrollHeight;
-}
-
-/* ==========================================
-   VARIABLES GLOBALES DEL SISTEMA
-   Controlan el estado de la app, firebase, auth, chat, y juego
-   ========================================== */
-
-/* Estado de la aplicación: true cuando el usuario puede jugar */
-var appReady = false;
-
-/* Si el usuario eligió jugar como invitado (no registra) */
-var userChoseGuest = false;
-
-/* Usuario actual de Firebase Auth */
-var currentUser = null;
-
-/* Perfil del usuario cargado desde la base de datos */
-var userProfile = null;
-
-/* Controla si onAuthStateChanged debe actuar o no */
-var skipAuthListener = false;
-
-/* Estado de la conexión a Firebase */
-var firebaseReady = false;
-
-/* Referencia a la base de datos de Firebase Realtime */
-var databaseRef = null;
-
-/* Indica si la prueba de conexión ya terminó */
-var connectionDone = false;
-
-/* Clave API de Groq para la IA del chat */
-var GROQ_API_KEY = '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';
-var GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-var GROQ_MODEL = 'llama-3.3-70b-versatile';
-
-/* Mensajes del chat grupal almacenados en memoria */
-var chatMessages = [];
-
-/* Referencia al listener activo del chat para poder desconectarlo */
-var chatListener = null;
-
-/* Último timestamp procesado del chat para solo traer nuevos */
-var lastChatTimestamp = 0;
-
-/* Set de keys de mensajes ya vistos para evitar duplicados */
-var seenChatKeys = {};
-
-/* Estado del bot de IA */
-var aiBusy = false;
-var AI_COOLDOWN = 5000;
-var lastAiTime = 0;
-
-/* Referencias a elementos DOM frecuentes */
-var hudElement = document.getElementById('hud');
-var gameCanvas = document.getElementById('gameCanvas');
-var ctx = gameCanvas.getContext('2d');
-
-/* ==========================================
-   VARIABLES DEL MOTOR DEL JUEGO
-   Controlan todo el estado del gameplay en canvas
-   ========================================== */
-
-/* Estado actual: 'start', 'playing', 'over' */
-var gameState = 'start';
-
-/* Puntuación, monedas, velocidad actual y máxima */
-var score = 0;
-var coins = 0;
-var speed = 5;
-var maxSpeed =;
-var bestScore = 0;
-
-/* Tiempos del juego */
-var gameStartTime = 0;
-var gameElapsed = 0;
-var frameCount = 0;
-
-/* Control de pausa cuando hay overlays visibles */
-var isPaused = true;
-
-/* Objeto jugador con física y estado */
-var player = {
-  x: 0, y: 0,
-  width: 28, height: 36,
-  velocityY: 0, gravity: 0.55,
-  jumpForce: -11.5,
-  jumpCount: 0, maxJumps: 2,
-  alive: true, grounded: false,
-  trail: []
+/* ================================================================
+   ★★★ CONFIGURACION FIREBASE - TUS CREDENCIALES REALES ★★★
+   ================================================================ */
+var firebaseConfig={
+  apiKey:"AIzaSyBR4Sk634O7cXBeieiKoHZw8ZWIek1lACI",
+  authDomain:"neon-dash-58b07.firebaseapp.com",
+  databaseURL:"https://neon-dash-58b07-default-rtdb.firebaseio.com",
+  projectId:"neon-dash-58b07",
+  storageBucket:"neon-dash-58b07.firebasestorage.app",
+  messagingSenderId:"982995239165",
+  appId:"1:982995239165:web:11e4378d294a82186b7e94",
+  measurementId:"G-GEWXN2JVSJ"
 };
 
-/* Posición del suelo y dimensiones del canvas */
-var groundY = 0;
-var canvasW = 900;
-var canvasH = 506;
+/* ================================================================
+   INICIALIZACION DE FIREBASE
+   ================================================================ */
+var database=null;
+var auth=null;
 
-/* Entidades del juego */
-var obstacles = [];
-var coinItems = [];
-var particles = [];
-var bgStars = [];
-var gridOffset = 0;
+(function initFirebase(){
+  try{
+    debugLog('Iniciando Firebase...','info');
+    firebase.initializeApp(firebaseConfig);
+    debugLog('Firebase inicializado OK','ok');
 
-/* ID del jugador persistente en localStorage */
-var playerId = localStorage.getItem('nd_playerId') || ('p_' + Math.random().toString(36).substr(2, 9));
-var playerName = localStorage.getItem('nd_playerName') || '';
-var previousPlayerId = localStorage.getItem('nd_prevId') || '';
-bestScore = parseInt(localStorage.getItem('nd_bestScore')) || 0;
+    database=firebase.database();
+    auth=firebase.auth();
+    debugLog('database + auth referenciados','ok');
 
-/* Variables del sistema de mensajes privados */
-var pmTarget = null;
-var pmTargetName = '';
-var pmListener = null;
-
-/* Variables del sistema de amigos */
-var friendRequests = {};
-var friendRequestListener = null;
-var pendingRequests = 0;
-var searchTimeout = null;
-
-/* ==========================================
-   FIREBASE - CONEXIÓN Y PRUEBA
-   Inicializa Firebase, verifica que funciona escribiendo/leyendo
-   ========================================== */
-(function initializeFirebase() {
-  /* Configuración del proyecto Firebase */
-  var firebaseConfig = {
-    apiKey: "AIzaSyBR4Sk634O7cXBeieiKoHZw8ZWIek1lACI",
-    authDomain: "neon-dash-58b07.firebaseapp.com",
-    databaseURL: "https://neonLog in -58b07-default-rtdb.firebaseio.com",
-    projectId: "neon-dash-58b07",
-    storageBucket: "neon-dash-58b07.firebasestorage.app",
-    messagingSenderId: "982995239165",
-    appId: "1:982995239165:web:11e4378d294a82186b7e94",
-    measurementId: "G-GEWXN2JVSJ"
-  };
-
-  /* Establecer badge de estado en pantalla */
-  function setBadge(elementId, status, text) {
-    var badge = document.getElementById(elementId);
-    if (badge) {
-      badge.className = 'online-badge ' + status;
-      var textSpan = badge.querySelector('span:last-child');
-      if (textSpan) textSpan.textContent = text;
-    }
-  }
-
-  /* Finalizar la prueba de conexión */
-  function finishConnection(success, message) {
-    if (connectionDone) return;
-    connectionDone = true;
-    if (success) {
-      firebaseReady = true;
-      setBadge('onlineBadge', 'connected', 'Online');
-      setBadge('authOnlineBadge', 'connected', 'Online');
-      debugLog('Conexion exitosa', 'ok');
-      debugPanel.style.display = 'none';
-    } else {
-      setBadge('onlineBadge', 'disconnected', 'Offline');
-      setBadge('authOnlineBadge', 'disconnected', 'Offline');
-      debugLog('FALLO: ' + message, 'err');
-    }
-  }
-
-  /* Ejecutar prueba de escritura/lectura */
-  function runConnectionTest() {
-    if (connectionDone && firebaseReady) return;
-    connectionDone = false;
-    firebaseReady = false;
-
-    debugPanel.style.display = 'block';
-    debugPanel.innerHTML = '';
-    setBadge('onlineBadge', 'checking', 'Verificando...');
-    setBadge('authOnlineBadge', 'checking', 'Verificando...');
-
-    /* Paso 1: verificar SDK */
-    debugLog('Paso 1: Verificando SDK Firebase...', 'info');
-    if (typeof firebase === 'undefined') {
-      debugLog('ERROR: SDK no cargado. Verifica tu conexion.', 'err');
-      finishConnection(false, 'Sin SDK');
-      return;
-    }
-    debugLog('SDK Firebase cargado correctamente', 'ok');
-
-    /* Paso 2: inicializar app */
-    debugLog('Paso 2: Inicializando...', 'info');
-    debugLog('URL: ' + firebaseConfig.databaseURL, 'info');
-    try {
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-        debugLog('Firebase App inicializada', 'ok');
-      } else {
-        debugLog('Firebase App ya existe, reutilizando', 'ok');
+    /* TIMEOUT: si en 8 segundos no hay respuesta, forzar desconectado */
+    var connTimeout=setTimeout(function(){
+      if(!firebaseConnected){
+        debugLog('TIMEOUT: Firebase no respondio en 8s','err');
+        debugLog('Verifica: 1) Que la URL del database sea correcta','err');
+        debugLog('2) Que las reglas de Realtime Database permitan lectura','err');
+        debugLog('3) Que no tengas un bloqueador de contenido activo','err');
+        forceDisconnected('Timeout');
       }
-    } catch (e) {
-      debugLog('ERROR init: ' + e.message, 'err');
-      finishConnection(false, 'Init: ' + e.message);
-      return;
-    }
+    },8000);
 
-    /* Paso 3: obtener referencia a la base de datos */
-    debugLog('Paso 3: Obteniendo dbRef...', 'info');
-    try {
-      databaseRef = firebase.database();
-      debugLog('dbRef obtenida correctamente', 'ok');
-    } catch (e) {
-      debugLog('ERROR db: ' + e.message, 'err');
-      finishConnection(false, 'DB: ' + e.message);
-      return;
-    }
-
-    /* Paso 4: escribir prueba en _tests/ */
-    debugLog('Paso 4: Escribiendo en _tests/...', 'info');
-    var testKey = '_ct_' + Date.now();
-    var testRef = databaseRef.ref('_tests/' + testKey);
-
-    testRef.set(true).then(function() {
-      debugLog('Escritura OK', 'ok');
-      debugLog('Paso 5: Leyendo...', 'info');
-      return testRef.once('value');
-    }).then(function(snapshot) {
-      var value = snapshot.val();
-      debugLog('Lectura: ' + JSON.stringify(value), 'info');
-      if (value === true) {
-        debugLog('Paso 6: Limpiando...', 'info');
-        testRef.remove().catch(function() {});
-        finishConnection(true);
-      } else {
-        finishConnection(false, 'Valor inesperado: ' + JSON.stringify(value));
-      }
-    }).catch(function(error) {
-      var code = error.code || '';
-      var msg = error.message || '';
-      debugLog('ERROR: ' + code + ' ' + msg, 'err');
-      if (code === 'permission-denied') {
-        debugLog('', 'info');
-        debugLog('=== PERMISO DENEGADO ===', 'err');
-        debugLog('Las reglas NO permiten escribir en _tests/', 'err');
-        debugLog('', 'info');
-        debugLog('SOLUCION:', 'info');
-        debugLog('1. Firebase > Realtime Database > Reglas', 'info');
-        debugLog('2. Borra todo el contenido actual', 'info');
-        debugLog('3. Pega las reglas que te di', 'info');
-        debugLog('4. Haz clic en PUBLICAR', 'info');
-      }
-      finishConnection(false, code || msg);
+    /* Escuchar estado de conexion en tiempo real */
+    database.ref('.info/connected').on('value',function(snap){
+      clearTimeout(connTimeout);
+      firebaseConnected=snap.val()===true;
+      debugLog('Firebase conectado: '+(firebaseConnected?'SI':'NO'),firebaseConnected?'ok':'err');
+      updateAllConnectionBadges(firebaseConnected?'connected':'disconnected');
     });
 
-    /* Timeout por si no hay respuesta en 10 segundos */
-    setTimeout(function() {
-      if (!connectionDone) {
-        debugLog('TIMEOUT: sin respuesta en 10s', 'err');
-        finishConnection(false, 'Timeout');
-      }
-    }, 10000);
+  }catch(e){
+    debugLog('EXCEPCION Firebase: '+e.message,'err');
+    forceDisconnected('Error: '+e.message);
   }
-
-  /* Ejecutar la prueba al cargar */
-  runConnectionTest();
 })();
 
-/* ==========================================
-   CANVAS - CONFIGURACIÓN Y RESIZE
-   Ajusta el canvas al tamaño del contenedor
-   ========================================== */
-function resizeCanvas() {
-  var rect = gameCanvas.parentElement.getBoundingClientRect();
-  canvasW = Math.round(rect.width * window.devicePixelRatio);
-  canvasH = Math.round(rect.height * window.devicePixelRatio);
-  gameCanvas.width = canvasW;
-  gameCanvas.height = canvasH;
-  groundY = canvasH * 0.78;
-  player.x = canvasW * 0.13;
-  player.y = groundY - player.height;
+/* Forzar desconectado cuando no se puede conectar */
+function forceDisconnected(reason){
+  firebaseConnected=false;
+  updateAllConnectionBadges('disconnected');
+  debugLog('Razon: '+reason,'err');
+  appReady=true;
+  showScreen('authScreen');
 }
 
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-/* Inicializar estrellas de fondo */
-function initBackgroundStars() {
-  bgStars = [];
-  for (var i = 0; i < 60; i++) {
-    bgStars.push({
-      x: Math.random() * canvasW,
-      y: Math.random() * groundY,
-      radius: Math.random() * 1.5 + 0.3,
-      speed: Math.random() * 0.3 + 0.1,
-      alpha: Math.random() * 0.5 + 0.2
-    });
-  }
-}
-initBackgroundStars();
-
-/* ==========================================
-   MOTOR DEL JUEGO - RESET Y START
-   Prepara todo para una nueva partida
-   ========================================== */
-function resetGame() {
-  score = 0;
-  coins = 0;
-  speed = 5;
-  maxSpeed = 5;
-  frameCount = 0;
-  gameElapsed = 0;
-  obstacles = [];
-  coinItems = [];
-  particles = [];
-  player.y = groundY - player.height;
-  player.velocityY = 0;
-  player.jumpCount = 0;
-  player.alive = true;
-  player.grounded = true;
-  player.trail = [];
-  updateHUD();
-}
-
-function startGame() {
-  if (!appReady) return;
-  resetGame();
-  gameState = 'playing';
-  isPaused = false;
-  gameStartTime = performance.now();
-
-  /* Ocultar todas las pantallas */
-  document.getElementById('authScreen').classList.add('hidden');
-  document.getElementById('startScreen').classList.add('hidden');
-  document.getElementById('gameOverScreen').classList.add('hidden');
-  document.getElementById('historyScreen').classList.add('hidden');
-  document.getElementById('chatScreen').classList.add('hidden');
-  document.getElementById('pmScreen').classList.add('hidden');
-  hudElement.classList.remove('hidden');
-}
-
-/* ==========================================
-   MOTOR DEL JUEGO - JUMP Y SPAWN
-   Salto del jugador y generación de obstáculos/monedas
-   ========================================== */
-function playerJump() {
-  if (gameState !== 'playing' || !player.alive) return;
-  if (player.jumpCount < player.maxJumps) {
-    /* Segundo salto es más débil */
-    player.velocityY = player.jumpForce * (player.jumpCount === 1 ? 0.85 : 1);
-    player.jumpCount++;
-    player.grounded = false;
-
-    /* Partículas de salto */
-    for (var i = 0; i < 6; i++) {
-      particles.push({
-        x: player.x + player.width / 2,
-        y: player.y + player.height,
-        vx: (Math.random() - 0.5) * 3,
-        vy: Math.random() * 2 + 1,
-        life: 20, maxLife: 20,
-        color: '#00ffaa',
-        size: Math.random() * 3 + 1
-      });
-    }
-  }
-}
-
-function spawnObstacle() {
-  var types = [
-    { w: 22 + Math.random() * 18, h: 30 + Math.random() * 30 },
-    { w: 18 + Math.random() * 12, h: 50 + Math.random() * 25 },
-    { w: 35 + Math.random() * 20, h: 22 + Math.random() * 15 }
+/* Actualizar todos los badges de conexion */
+function updateAllConnectionBadges(state){
+  var badges=[
+    {el:document.getElementById('authOnlineBadge'),txt:document.getElementById('authOnlineText')},
+    {el:document.getElementById('onlineBadge'),txt:document.getElementById('onlineText')}
   ];
-  var type = types[Math.floor(Math.random() * types.length)];
-  obstacles.push({ x: canvasW + 10, y: groundY - type.h, w: type.w, h: type.h, passed: false });
-}
-
-function spawnCoin() {
-  coinItems.push({
-    x: canvasW + 10,
-    y: groundY - (30 + Math.random() * 80),
-    radius: 8, collected: false, angle: 0
+  var texts={connected:'En linea',disconnected:'Desconectado',checking:'Verificando...'};
+  badges.forEach(function(b){
+    if(!b.el)return;
+    b.el.className='online-badge '+state;
+    if(b.txt)b.txt.textContent=texts[state]||texts.checking;
   });
 }
 
-/* ==========================================
-   MOTOR DEL JUEGO - COLISIONES
-   Detecta si el jugador choca con algún obstáculo
-   ========================================== */
-function checkCollisions() {
-  var px = player.x + 4;
-  var py = player.y + 4;
-  var pw = player.width - 8;
-  var ph = player.height - 4;
-  for (var i = 0; i < obstacles.length; i++) {
-    var o = obstacles[i];
-    if (px < o.x + o.w && px + pw > o.x && py < o.y + o.h && py + ph > o.y) {
-      return true;
-    }
-  }
-  return false;
+/* ================================================================
+   NAVEGACION ENTRE PANTALLAS
+   ================================================================ */
+function showScreen(id){
+  var screens=['authScreen','startScreen','gameOverScreen','historyScreen','chatScreen','pmScreen'];
+  screens.forEach(function(s){
+    var el=document.getElementById(s);
+    if(el)el.classList.toggle('hidden',s!==id);
+  });
+  document.getElementById('hud').classList.toggle('hidden',id!=='__playing__');
 }
 
-/* Recoger monedas al pasar cerca del jugador */
-function collectCoins() {
-  var centerX = player.x + player.width / 2;
-  var centerY = player.y + player.height / 2;
-  for (var i = coinItems.length - 1; i >= 0; i--) {
-    var coin = coinItems[i];
-    if (coin.collected) continue;
-    var dx = centerX - coin.x;
-    var dy = centerY - coin.y;
-    if (Math.sqrt(dx * dx + dy * dy) < coin.radius + 18) {
-      coin.collected = true;
-      coins++;
-      for (var j = 0; j < 8; j++) {
-        particles.push({
-          x: coin.x, y: coin.y,
-          vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
-          life: 25, maxLife: 25,
-          color: '#ffaa00', size: Math.random() * 3 + 1
-        });
-      }
-    }
-  }
-}
+/* ================================================================
+   SISTEMA DE AUTENTICACION
+   ================================================================ */
+/* Tabs login/registro */
+document.querySelectorAll('.auth-tab').forEach(function(tab){
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.auth-tab').forEach(function(t){t.classList.remove('active')});
+    tab.classList.add('active');
+    var which=tab.getAttribute('data-authtab');
+    document.getElementById('loginForm').classList.toggle('active',which==='login');
+    document.getElementById('registerForm').classList.toggle('active',which==='register');
+    document.getElementById('loginError').textContent='';
+    document.getElementById('regError').textContent='';
+  });
+});
 
-/* ==========================================
-   MOTOR DEL JUEGO - GAME OVER
-   Maneja la muerte del jugador, explosión, guardado y pantalla
-   ========================================== */
-function gameOver() {
-  player.alive = false;
-  gameState = 'over';
-  isPaused = true;
-  gameElapsed = performance.now() - gameStartTime;
-  if (speed > maxSpeed) maxSpeed = speed;
+/* Boton LOGIN */
+document.getElementById('btnLogin').addEventListener('click',function(){
+  var email=document.getElementById('loginEmail').value.trim();
+  var pass=document.getElementById('loginPass').value;
+  var errEl=document.getElementById('loginError');
+  errEl.textContent='';
+  if(!email||!pass){errEl.textContent='Completa todos los campos';return;}
+  if(!auth){errEl.textContent='Firebase no inicializado';return;}
+  this.disabled=true;
+  auth.signInWithEmailAndPassword(email,pass).then(function(cred){
+    debugLog('Login OK: '+cred.user.uid,'ok');
+  }).catch(function(e){
+    errEl.textContent=traducirError(e.code);
+    debugLog('Error login: '+e.code,'err');
+  }).finally(function(){document.getElementById('btnLogin').disabled=false;});
+});
 
-  /* Verificar si es nuevo récord */
-  var isNewRecord = false;
-  if (score > bestScore) {
-    bestScore = score;
-    localStorage.setItem('nd_bestScore', bestScore);
-    isNewRecord = true;
-  }
-
-  /* Explosión de partículas */
-  for (var i = 0; i < 30; i++) {
-    var angle = Math.random() * Math.PI * 2;
-    var spd = Math.random() * 6 + 2;
-    particles.push({
-      x: player.x + player.width / 2,
-      y: player.y + player.height / 2,
-      vx: Math.cos(angle) * spd,
-      vy: Math.sin(angle) * spd,
-      life: 40 + Math.random() * 20,
-      maxLife: 60,
-      color: i % 3 === 0 ? '#ff2266' : '#00ffaa',
-      size: Math.random() * 4 + 1
+/* Boton REGISTRO */
+document.getElementById('btnRegister').addEventListener('click',function(){
+  var user=document.getElementById('regUser').value.trim().toUpperCase();
+  var email=document.getElementById('regEmail').value.trim();
+  var pass=document.getElementById('regPass').value;
+  var pass2=document.getElementById('regPass2').value;
+  var errEl=document.getElementById('regError');
+  errEl.textContent='';
+  if(!user||!email||!pass||!pass2){errEl.textContent='Completa todos los campos';return;}
+  if(user.length<2){errEl.textContent='Nombre muy corto (min 2)';return;}
+  if(pass.length<6){errEl.textContent='Clave minimo 6 caracteres';return;}
+  if(pass!==pass2){errEl.textContent='Las claves no coinciden';return;}
+  if(!auth){errEl.textContent='Firebase no inicializado';return;}
+  this.disabled=true;
+  auth.createUserWithEmailAndPassword(email,pass).then(function(cred){
+    return cred.user.updateProfile({displayName:user}).then(function(){
+      return database.ref('users/'+cred.user.uid).set({
+        name:user,email:email,coins:0,bestScore:0,
+        createdAt:firebase.database.ServerValue.TIMESTAMP,online:true
+      });
     });
-  }
+  }).then(function(){
+    debugLog('Registro OK','ok');
+  }).catch(function(e){
+    errEl.textContent=traducirError(e.code);
+    debugLog('Error registro: '+e.code+' - '+e.message,'err');
+  }).finally(function(){document.getElementById('btnRegister').disabled=false;});
+});
 
-  /* Guardar resultado */
-  saveGameResult();
+/* Boton INVITADO */
+document.getElementById('btnGuest').addEventListener('click',function(){
+  userChoseGuest=true;
+  playerUID='guest_'+genId();
+  playerName='INVITADO';
+  debugLog('Modo invitado: '+playerUID,'info');
+  setupStartScreen();
+});
 
-  /* Mostrar pantalla de game over después de un momento */
-  setTimeout(function() {
-    document.getElementById('goPlayerName').textContent = playerName || 'JUGADOR';
-    document.getElementById('finalScore').textContent = score;
-    document.getElementById('finalCoins').textContent = coins;
-    document.getElementById('finalBest').textContent = bestScore;
-    document.getElementById('finalSpeed').textContent = maxSpeed.toFixed(1);
-    document.getElementById('finalTime').textContent = formatTime(gameElapsed);
-    document.getElementById('gameOverScreen').classList.remove('hidden');
-    hudElement.classList.add('hidden');
-
-    /* Mostrar animación de nuevo récord */
-    if (isNewRecord) {
-      var recordEl = document.getElementById('newRecord');
-      recordEl.classList.add('show');
-      setTimeout(function() { recordEl.classList.remove('show'); }, 2000);
+/* Escuchar cambios de auth */
+if(typeof auth!=='undefined'&&auth){
+  auth.onAuthStateChanged(function(user){
+    if(skipAuthListener)return;
+    debugLog('Auth state: '+(user?user.uid:'null'),'info');
+    currentUser=user;
+    if(user){
+      playerUID=user.uid;
+      playerName=(user.displayName||'JUGADOR').toUpperCase();
+      loadUserProfile();
+    }else if(!userChoseGuest){
+      showScreen('authScreen');
     }
-  }, 600);
+  });
 }
 
-/* ==========================================
-   MOTOR DEL JUEGO - UPDATE
-   Actualiza física, velocidad, puntuación, spawns cada frame
-   ========================================== */
-function updateGame() {
-  if (gameState !== 'playing' || !player.alive) return;
-  frameCount++;
-  gameElapsed = performance.now() - gameStartTime;
-
-  /* Velocidad creciente con el tiempo */
-  speed = 5 + frameCount * 0.003;
-  if (speed > 16) speed = 16;
-
-  /* Puntuación basada en frames */
-  score = Math.floor(frameCount * 0.5);
-
-  /* Física del jugador: gravedad, salto, suelo */
-  player.velocityY += player.gravity;
-  player.y += player.velocityY;
-  if (player.y >= groundY - player.height) {
-    player.y = groundY - player.height;
-    player.velocityY = 0;
-    player.jumpCount = 0;
-    player.grounded = true;
-  }
-
-  /* Trail del jugador (estela visual) */
-  player.trail.push({
-    x: player.x + player.width / 2,
-    y: player.y + player.height / 2,
-    alpha: 1
+/* Cargar perfil del usuario desde la base de datos */
+function loadUserProfile(){
+  if(!database){setupStartScreen();return;}
+  database.ref('users/'+playerUID).once('value').then(function(snap){
+    userProfile=snap.val()||{};
+    playerName=(userProfile.name||playerName).toUpperCase();
+    totalCoins=userProfile.coins||0;
+    bestScore=userProfile.bestScore||0;
+    debugLog('Perfil: '+playerName+' | Coins: '+totalCoins+' | Best: '+bestScore,'ok');
+    setupStartScreen();
+    setOnlineStatus(true);
+  }).catch(function(e){
+    debugLog('Error perfil: '+e.message,'err');
+    setupStartScreen();
   });
-  if (player.trail.length > 12) player.trail.shift();
-  for (var t = 0; t < player.trail.length; t++) player.trail[t].alpha *= 0.85;
+}
 
-  /* Desplazar grid del suelo */
-  gridOffset = (gridOffset + speed * 0.8) % 40;
+/* Marcar online/offline en la base de datos */
+function setOnlineStatus(isOnline){
+  if(!database||!playerUID||playerUID.startsWith('guest_'))return;
+  var ref=database.ref('users/'+playerUID+'/online');
+  if(isOnline){
+    ref.onDisconnect().set(false);
+    ref.set(true);
+  }else{
+    ref.set(false);
+  }
+}
 
-  /* Spawn de obstáculos con tasa variable */
-  var spawnRate = Math.max(40, 90 - Math.floor(speed * 3));
-  if (frameCount % spawnRate === 0) spawnObstacle();
-  if (frameCount % 55 === 0 && Math.random() > 0.3) spawnCoin();
+/* Configurar la pantalla de inicio segun el estado del usuario */
+function setupStartScreen(){
+  appReady=true;
+  var info=document.getElementById('loggedInInfo');
+  var coinsDisp=document.getElementById('userCoinsDisplay');
+  var nameWrap=document.getElementById('nameInputWrap');
 
-  /* Mover obstáculos hacia la izquierda */
-  for (var i = obstacles.length - 1; i >= 0; i--) {
-    obstacles[i].x -= speed;
-    if (obstacles[i].x + obstacles[i].w < -20) {
-      obstacles.splice(i, 1);
-      continue;
-    }
-    /* Verificar colisión con el jugador */
-    if (!obstacles[i].passed && checkCollisions()) {
-      gameOver();
-      return;
+  if(currentUser&&!userChoseGuest){
+    info.innerHTML='<i class="fa-solid fa-circle-check"></i> '+escapeHTML(playerName)+' <span class="logout-link" id="logoutLink">Cerrar sesion</span>';
+    coinsDisp.classList.remove('hidden');
+    document.getElementById('userTotalCoins').textContent=totalCoins;
+    nameWrap.style.display='none';
+    var logoutEl=document.getElementById('logoutLink');
+    if(logoutEl)logoutEl.addEventListener('click',doLogout);
+  }else{
+    info.innerHTML='';
+    coinsDisp.classList.add('hidden');
+    nameWrap.style.display='';
+    var savedName=localStorage.getItem('nd_guestName');
+    if(savedName)document.getElementById('playerName').value=savedName;
+  }
+  showScreen('startScreen');
+}
+
+/* Cerrar sesion */
+function doLogout(){
+  skipAuthListener=true;
+  setOnlineStatus(false);
+  if(auth)auth.signOut();
+  currentUser=null;userProfile=null;playerUID='';playerName='JUGADOR';
+  totalCoins=0;bestScore=0;userChoseGuest=false;
+  setTimeout(function(){skipAuthListener=false;},100);
+  showScreen('authScreen');
+}
+
+/* Traducir errores de Firebase a espanol */
+function traducirError(code){
+  var map={
+    'auth/email-already-in-use':'Ese correo ya esta registrado',
+    'auth/invalid-email':'Correo invalido',
+    'auth/weak-password':'Clave muy debil (min 6)',
+    'auth/user-not-found':'No hay cuenta con ese correo',
+    'auth/wrong-password':'Clave incorrecta',
+    'auth/too-many-requests':'Demasiados intentos, espera un momento',
+    'auth/invalid-credential':'Correo o clave incorrectos',
+    'auth/network-request-failed':'Error de red, verifica tu conexion',
+    'auth/operation-not-allowed':'Metodo de auth no habilitado en Firebase Console'
+  };
+  return map[code]||'Error: '+code;
+}
+
+/* ================================================================
+   BOTONES DE LA PANTALLA DE INICIO
+   ================================================================ */
+document.getElementById('btnStart').addEventListener('click',startGame);
+document.getElementById('btnHistory').addEventListener('click',openHistory);
+document.getElementById('btnChat').addEventListener('click',openChat);
+document.getElementById('btnFriends').addEventListener('click',openFriendsTab);
+
+/* Leer nombre del invitado */
+document.getElementById('playerName').addEventListener('input',function(){
+  var v=this.value.trim().toUpperCase();
+  if(v.length>=2){playerName=v;localStorage.setItem('nd_guestName',v);}
+});
+
+/* ================================================================
+   MOTOR DEL JUEGO - CANVAS
+   ================================================================ */
+var canvas=document.getElementById('gameCanvas');
+var ctx=canvas.getContext('2d');
+var W=0,H=0;
+var dpr=Math.min(window.devicePixelRatio||1,2);
+
+function resizeCanvas(){
+  var rect=canvas.parentElement.getBoundingClientRect();
+  W=rect.width;H=rect.height;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+resizeCanvas();
+window.addEventListener('resize',resizeCanvas);
+
+/* Estado del juego */
+var gameState='idle';
+var score=0,coins=0,speed=4,maxSpeed=0,gameTime=0,gameStartTime=0;
+var groundY=0,gravity=0.6,jumpForce=-12;
+var player={x:0,y:0,vy:0,w:30,h:40,grounded:true,doubleJump:false};
+var obstacles=[],coinItems=[],particles=[],bgStars=[];
+var spawnTimer=0,coinSpawnTimer=0,difficultyTimer=0;
+var frameCount=0;
+var animId=null;
+
+/* Generar estrellas de fondo */
+function initStars(){
+  bgStars=[];
+  for(var i=0;i<80;i++){
+    bgStars.push({x:Math.random()*1200,y:Math.random()*400,r:Math.random()*1.5+0.3,s:Math.random()*0.5+0.1,a:Math.random()});
+  }
+}
+initStars();
+
+/* Iniciar una nueva partida */
+function startGame(){
+  if(document.getElementById('nameInputWrap').style.display!=='none'){
+    var n=document.getElementById('playerName').value.trim().toUpperCase();
+    if(n.length>=2)playerName=n;
+    else if(playerName==='JUGADOR'){document.getElementById('playerName').focus();return;}
+  }
+
+  groundY=H*0.78;
+  player.x=W*0.12;player.y=groundY-player.h;
+  player.vy=0;player.grounded=true;player.doubleJump=false;
+
+  score=0;coins=0;speed=4;maxSpeed=0;gameTime=0;
+  obstacles=[];coinItems=[];particles=[];
+  spawnTimer=0;coinSpawnTimer=0;difficultyTimer=0;frameCount=0;
+  gameStartTime=Date.now();
+  gameState='playing';
+
+  document.getElementById('hudScore').textContent='0';
+  document.getElementById('hudCoins').textContent='0';
+  document.getElementById('hudBest').textContent=bestScore;
+  document.getElementById('hudPlayer').textContent=playerName;
+
+  showScreen('__playing__');
+  if(animId)cancelAnimationFrame(animId);
+  gameLoop();
+}
+
+/* Loop principal del juego */
+function gameLoop(){
+  if(gameState!=='playing')return;
+  animId=requestAnimationFrame(gameLoop);
+  frameCount++;
+  update();
+  draw();
+}
+
+/* Actualizar logica del juego */
+function update(){
+  gameTime=Date.now()-gameStartTime;
+
+  /* Aumentar dificultad progresivamente */
+  difficultyTimer++;
+  if(difficultyTimer%120===0&&speed<14)speed+=0.15;
+  if(speed>maxSpeed)maxSpeed=speed;
+
+  /* Puntos por distancia */
+  if(frameCount%4===0){score++;document.getElementById('hudScore').textContent=score;}
+
+  /* Fisica del jugador */
+  player.vy+=gravity;
+  player.y+=player.vy;
+  if(player.y>=groundY-player.h){
+    player.y=groundY-player.h;player.vy=0;
+    player.grounded=true;player.doubleJump=false;
+  }
+
+  /* Generar obstaculos */
+  spawnTimer++;
+  var spawnRate=Math.max(40,90-Math.floor(speed*4));
+  if(spawnTimer>=spawnRate){
+    spawnTimer=0;
+    var types=['spike','block','tall'];
+    var type=types[Math.floor(Math.random()*types.length)];
+    var oh=type==='tall'?60:type==='block'?35:28;
+    var ow=type==='tall'?20:type==='block'?35:18;
+    obstacles.push({x:W+20,y:groundY-oh,w:ow,h:oh,type:type});
+  }
+
+  /* Generar monedas */
+  coinSpawnTimer++;
+  if(coinSpawnTimer>=60+Math.random()*40){
+    coinSpawnTimer=0;
+    var cy=groundY-50-Math.random()*80;
+    coinItems.push({x:W+20,y:cy,r:8,collected:false,angle:0});
+  }
+
+  /* Mover y colisionar obstaculos */
+  for(var i=obstacles.length-1;i>=0;i--){
+    obstacles[i].x-=speed;
+    if(obstacles[i].x+obstacles[i].w<-20){obstacles.splice(i,1);continue;}
+    if(rectCollide(player,obstacles[i])){endGame();return;}
+  }
+
+  /* Mover y recolectar monedas */
+  for(var j=coinItems.length-1;j>=0;j--){
+    coinItems[j].x-=speed;
+    coinItems[j].angle+=0.08;
+    if(coinItems[j].x<-20){coinItems.splice(j,1);continue;}
+    if(!coinItems[j].collected&&circRectCollide(coinItems[j],player)){
+      coinItems[j].collected=true;coins++;score+=10;
+      document.getElementById('hudCoins').textContent=coins;
+      spawnCoinParticles(coinItems[j].x,coinItems[j].y);
+      coinItems.splice(j,1);
     }
   }
 
-  /* Mover monedas hacia la izquierda */
-  for (var i = coinItems.length - 1; i >= 0; i--) {
-    coinItems[i].x -= speed;
-    coinItems[i].angle += 0.08;
-    if (coinItems[i].x < -20) coinItems.splice(i, 1);
-  }
-
-  /* Recolectar monedas */
-  collectCoins();
-
-  /* Actualizar partículas (muerte las que mueren, quitan las que no) */
-  for (var i = particles.length - 1; i >= 0; i--) {
-    var p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.1;
-    p.life--;
-    if (p.life <= 0) particles.splice(i, 1);
+  /* Actualizar particulas */
+  for(var k=particles.length-1;k>=0;k--){
+    var p=particles[k];
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life--;
+    if(p.life<=0)particles.splice(k,1);
   }
 
   /* Mover estrellas de fondo */
-  for (var i = 0; i < bgStars.length; i++) {
-    bgStars[i].x -= bgStars[i].speed * speed * 0.3;
-    if (bgStars[i].x < -5) {
-      bgStars[i].x = canvasW + 5;
-      bgStars[i].y = Math.random() * groundY;
-    }
+  for(var s=0;s<bgStars.length;s++){
+    bgStars[s].x-=bgStars[s].s*(speed*0.3);
+    bgStars[s].a=0.3+0.7*Math.abs(Math.sin(frameCount*0.02+s));
+    if(bgStars[s].x<-5)bgStars[s].x=W+5;
   }
-
-  updateHUD();
 }
 
-/* ==========================================
-   MOTOR DEL JUEGO - RENDER
-   Dibuja todo en el canvas cada frame
-   ========================================== */
-function renderGame() {
-  /* Limpiar canvas */
-  ctx.clearRect(0, 0, canvasW, canvasH);
+/* Colision rectangulo vs rectangulo */
+function rectCollide(a,b){
+  var m=4;
+  return a.x+m<b.x+b.w&&a.x+a.w-m>b.x&&a.y+m<b.y+b.h&&a.y+a.h-m>b.y;
+}
 
-  /* Fondo con gradiente */
-  var bg = ctx.createLinearGradient(0, 0, 0, canvasH);
-  bg.addColorStop(0, '#060610');
-  bg.addColorStop(0.7, '#0a0a18');
-  bg.addColorStop(1, '#0c0c1a');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, canvasW, canvasH);
+/* Colision circulo vs rectangulo */
+function circRectCollide(c,r){
+  var nx=clamp(c.x,r.x,r.x+r.w);
+  var ny=clamp(c.y,r.y,r.y+r.h);
+  var dx=c.x-nx,dy=c.y-ny;
+  return(dx*dx+dy*dy)<(c.r*c.r);
+}
 
-  /* Dibujar estrellas de fondo */
-  for (var i = 0; i < bgStars.length; i++) {
-    var star = bgStars[i];
-    ctx.globalAlpha = star.alpha;
-    ctx.fillStyle = '#e0e8ff';
+/* Particulas al recolectar moneda */
+function spawnCoinParticles(x,y){
+  for(var i=0;i<8;i++){
+    particles.push({x:x,y:y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4-2,life:20+Math.random()*15,maxLife:35,color:'#ffaa00',size:2+Math.random()*2});
+  }
+}
+
+/* Accion de salto (simple y doble) */
+function doJump(){
+  if(gameState!=='playing')return;
+  if(player.grounded){
+    player.vy=jumpForce;player.grounded=false;
+  }else if(!player.doubleJump){
+    player.vy=jumpForce*0.85;player.doubleJump=true;
+    for(var i=0;i<5;i++){
+      particles.push({x:player.x+player.w/2,y:player.y+player.h,vx:(Math.random()-0.5)*3,vy:Math.random()*2+1,life:15,maxLife:15,color:'#00ffaa',size:2});
+    }
+  }
+}
+
+/* Controles: teclado, touch, mouse */
+document.addEventListener('keydown',function(e){
+  if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();doJump();}
+});
+canvas.addEventListener('touchstart',function(e){e.preventDefault();doJump();},{passive:false});
+canvas.addEventListener('mousedown',function(e){e.preventDefault();doJump();});
+
+/* ================================================================
+   DIBUJO DEL JUEGO
+   ================================================================ */
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  /* Fondo degradado */
+  var bgGrad=ctx.createLinearGradient(0,0,0,H);
+  bgGrad.addColorStop(0,'#060610');
+  bgGrad.addColorStop(0.6,'#0a0a18');
+  bgGrad.addColorStop(1,'#0d1020');
+  ctx.fillStyle=bgGrad;
+  ctx.fillRect(0,0,W,H);
+
+  /* Estrellas */
+  for(var s=0;s<bgStars.length;s++){
+    var st=bgStars[s];
+    ctx.globalAlpha=st.a*0.6;
+    ctx.fillStyle='#e0e8ff';
     ctx.beginPath();
-    ctx.arc(star.x, star.y, Math.max(0.1, star.radius), 0, Math.PI * 2);
+    ctx.arc(st.x,st.y,Math.max(0.3,st.r),0,Math.PI*2);
     ctx.fill();
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha=1;
 
-  /* Línea de horizonte lejana */
-  ctx.strokeStyle = 'rgba(0,255,170,0.06)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, groundY - 60);
-  ctx.lineTo(canvasW, groundY - 60);
-  ctx.stroke();
+  /* Linea de horizonte */
+  ctx.strokeStyle='rgba(0,255,170,0.05)';
+  ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,groundY-60);ctx.lineTo(W,groundY-60);ctx.stroke();
 
-  /* Grid del suelo con perspectiva */
-  ctx.strokeStyle = 'rgba(0,255,170,0.08)';
-  ctx.lineWidth = 1;
-  for (var gx = -gridOffset; gx < canvasW; gx += 40) {
-    ctx.beginPath();
-    ctx.moveTo(gx, groundY);
-    ctx.lineTo(gx, canvasH);
-    ctx.stroke();
+  /* Suelo con degradado */
+  var gGrad=ctx.createLinearGradient(0,groundY,0,H);
+  gGrad.addColorStop(0,'rgba(0,255,170,0.15)');
+  gGrad.addColorStop(1,'rgba(0,255,170,0.02)');
+  ctx.fillStyle=gGrad;
+  ctx.fillRect(0,groundY,W,H-groundY);
+
+  /* Linea brillante del suelo */
+  ctx.shadowColor='#00ffaa';ctx.shadowBlur=8;
+  ctx.strokeStyle='rgba(0,255,170,0.5)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,groundY);ctx.lineTo(W,groundY);ctx.stroke();
+  ctx.shadowBlur=0;
+
+  /* Lineas de velocidad en el suelo */
+  ctx.strokeStyle='rgba(0,255,170,0.08)';ctx.lineWidth=1;
+  for(var i=0;i<8;i++){
+    var ly=groundY+8+i*10;
+    var lx=((frameCount*speed*(0.5+i*0.15))%(W+40))-20;
+    ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+20+i*5,ly);ctx.stroke();
   }
-  for (var gy = groundY; gy < canvasH; gy += 20) {
-    ctx.beginPath();
-    ctx.moveTo(0, gy);
-    ctx.lineTo(canvasW, gy);
-    ctx.stroke();
-  }
 
-  /* Línea del suelo principal brillante */
-  ctx.shadowColor = '#00ffaa';
-  ctx.shadowBlur = 12;
-  ctx.strokeStyle = '#00ffaa';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, groundY);
-  ctx.lineTo(canvasW, groundY);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
+  /* Dibujar obstaculos */
+  for(var o=0;o<obstacles.length;o++)drawObstacle(obstacles[o]);
 
-  /* Dibujar trail del jugador */
-  for (var i = 0; i < player.trail.length; i++) {
-    var trail = player.trail[i];
-    ctx.globalAlpha = trail.alpha * 0.3;
-    ctx.fillStyle = '#00ffaa';
-    ctx.beginPath();
-    ctx.arc(trail.x, trail.y, Math.max(0.1, 4 * trail.alpha), 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  /* Dibujar monedas con efecto de rotación */
-  for (var i = 0; i < coinItems.length; i++) {
-    var coin = coinItems[i];
-    if (coin.collected) continue;
-    ctx.save();
-    ctx.translate(coin.x, coin.y);
-    ctx.scale(Math.max(0.1, Math.abs(Math.cos(coin.angle)), 1);
-    ctx.shadowColor = '#ffaa00';
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = '#ffaa00';
-    ctx.strokeStyle = '#ffcc44';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(0, 0, Math.max(0.1, coin.radius), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+  /* Dibujar monedas */
+  for(var c=0;c<coinItems.length;c++){
+    var co=coinItems[c];
+    ctx.save();ctx.translate(co.x,co.y);ctx.rotate(co.angle);
+    ctx.shadowColor='#ffaa00';ctx.shadowBlur=10;
+    ctx.fillStyle='#ffaa00';
+    ctx.beginPath();ctx.ellipse(0,0,Math.max(1,co.r),Math.max(1,co.r*0.5),0,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#ffe066';
+    ctx.beginPath();ctx.ellipse(0,0,Math.max(0.5,co.r*0.5),Math.max(0.5,co.r*0.25),0,0,Math.PI*2);ctx.fill();
     ctx.restore();
   }
 
-  /* Dibujar obstáculos con brillo rojo */
-  for (var i = 0; i < obstacles.length; i++) {
-    var obs = obstacles[i];
-    ctx.shadowColor = '#ff2266';
-    ctx.shadowBlur = 8;
-    ctx.strokeStyle = '#ff2266';
-    ctx.lineWidth = 2;
-    ctx.fillStyle = 'rgba(255,34,102,0.12)';
-    ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-    ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
-    ctx.shadowBlur = 0;
+  /* Dibujar jugador */
+  drawPlayer();
+
+  /* Dibujar particulas */
+  for(var p=0;p<particles.length;p++){
+    var pt=particles[p];
+    ctx.globalAlpha=clamp(pt.life/pt.maxLife,0,1);
+    ctx.fillStyle=pt.color;
+    ctx.beginPath();ctx.arc(pt.x,pt.y,Math.max(0.5,pt.size*(pt.life/pt.maxLife)),0,Math.PI*2);ctx.fill();
   }
+  ctx.globalAlpha=1;
+}
 
-  /* Dibujar jugador (forma de diamante) */
-  if (player.alive) {
-    var px = player.x, py = player.y, pw = player.width, ph = player.height;
-    ctx.shadowColor = '#00ffaa';
-    ctx.shadowBlur = 15;
-    ctx.fillStyle = '#00ffaa';
-    ctx.beginPath();
-    ctx.moveTo(px + pw / 2, py);
-    ctx.lineTo(px + pw, py + ph * 0.65);
-    ctx.lineTo(px + pw / 2, py + ph);
-    ctx.lineTo(px, py + ph * 0.65);
-    ctx.closePath();
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    /* Ojo del jugador */
-    ctx.fillStyle = '#060610';
-    ctx.beginPath();
-    ctx.arc(px + pw / 2, py + ph * 0.42, Math.max(0.1, pw * 0.15), 0, Math.PI * 2);
-    ctx.fill();
-
-    /* Punto de luz en el ojo */
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(px + pw / 2, py + ph * 0.42, Math.max(0.1, pw * 0.07), 0, Math.PI * 2);
-    ctx.fill();
+function drawObstacle(ob){
+  ctx.shadowColor='#ff2266';ctx.shadowBlur=12;
+  if(ob.type==='spike'){
+    ctx.fillStyle='#ff2266';
+    ctx.beginPath();ctx.moveTo(ob.x+ob.w/2,ob.y);ctx.lineTo(ob.x+ob.w,ob.y+ob.h);ctx.lineTo(ob.x,ob.y+ob.h);ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(255,100,150,0.3)';
+    ctx.beginPath();ctx.moveTo(ob.x+ob.w/2,ob.y+8);ctx.lineTo(ob.x+ob.w-4,ob.y+ob.h);ctx.lineTo(ob.x+4,ob.y+ob.h);ctx.closePath();ctx.fill();
+  }else if(ob.type==='tall'){
+    var tG=ctx.createLinearGradient(ob.x,ob.y,ob.x+ob.w,ob.y);
+    tG.addColorStop(0,'#ff2266');tG.addColorStop(1,'#cc1155');
+    ctx.fillStyle=tG;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);
+    ctx.strokeStyle='rgba(255,150,180,0.4)';ctx.lineWidth=1;
+    for(var i=0;i<ob.h;i+=8){ctx.beginPath();ctx.moveTo(ob.x,ob.y+i);ctx.lineTo(ob.x+ob.w,ob.y+i);ctx.stroke();}
+  }else{
+    var bG=ctx.createLinearGradient(ob.x,ob.y,ob.x,ob.y+ob.h);
+    bG.addColorStop(0,'#ff2266');bG.addColorStop(1,'#aa1144');
+    ctx.fillStyle=bG;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);
+    ctx.fillStyle='rgba(255,255,255,0.1)';ctx.fillRect(ob.x+3,ob.y+3,ob.w-6,4);
   }
+  ctx.shadowBlur=0;
+}
 
-  /* Dibujar partículas */
-  for (var i = 0; i < particles.length; i++) {
-    var p = particles[i];
-    ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, Math.max(0.1, p.size * (p.life / p.maxLife)), 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  /* Indicadores de saltos restantes */
-  if (gameState === 'playing' && player.alive) {
-    for (var j = 0; j < player.maxJumps; j++) {
-      ctx.fillStyle = j < player.maxJumps - player.jumpCount ? '#00ffaa' : 'rgba(0,255,170,0.15)';
-      ctx.beginPath();
-      ctx.arc(player.x + player.w / 2 - 6 + j * 12, player.y - 10, Math.max(0.1, 3), 0, Math.PI * 2);
-      ctx.fill();
+function drawPlayer(){
+  var px=player.x,py=player.y,pw=player.w,ph=player.h;
+  ctx.shadowColor='#00ffaa';ctx.shadowBlur=15;
+  var pG=ctx.createLinearGradient(px,py,px,py+ph);
+  pG.addColorStop(0,'#00ffaa');pG.addColorStop(1,'#00aa66');
+  ctx.fillStyle=pG;
+  ctx.beginPath();
+  ctx.moveTo(px+pw*0.3,py);ctx.lineTo(px+pw*0.7,py);
+  ctx.lineTo(px+pw,py+ph*0.3);ctx.lineTo(px+pw*0.85,py+ph*0.7);
+  ctx.lineTo(px+pw*0.6,py+ph);ctx.lineTo(px+pw*0.4,py+ph);
+  ctx.lineTo(px+pw*0.15,py+ph*0.7);ctx.lineTo(px,py+ph*0.3);
+  ctx.closePath();ctx.fill();
+  ctx.shadowBlur=0;
+  /* Visor */
+  ctx.fillStyle='#060610';ctx.fillRect(px+pw*0.45,py+ph*0.15,pw*0.35,ph*0.12);
+  ctx.fillStyle='#00ddff';ctx.fillRect(px+pw*0.5,py+ph*0.17,pw*0.2,ph*0.08);
+  /* Linea central */
+  ctx.strokeStyle='rgba(0,221,255,0.4)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(px+pw*0.5,py+ph*0.3);ctx.lineTo(px+pw*0.5,py+ph*0.85);ctx.stroke();
+  /* Trail de velocidad */
+  if(speed>6){
+    ctx.globalAlpha=clamp((speed-6)/8,0,0.4);
+    ctx.fillStyle='#00ffaa';
+    for(var t=0;t<3;t++){
+      ctx.fillRect(px-5-t*8,py+ph*0.3+Math.random()*ph*0.4,4+Math.random()*6,2);
     }
+    ctx.globalAlpha=1;
   }
 }
 
-/* ==========================================
-   HUD UPDATE Y HELPERS
-   Actualiza los números en el HUD
-   ========================================== */
-function updateHUD() {
-  document.getElementById('hudScore').textContent = score;
-  document.getElementById('hudCoins').textContent = coins;
-  document.getElementById('hudBest').textContent = bestScore;
-}
+/* ================================================================
+   FIN DEL JUEGO
+   ================================================================ */
+function endGame(){
+  gameState='dead';
+  if(animId)cancelAnimationFrame(animId);
 
-function updateHudPlayer() {
-  document.getElementById('hudPlayer').textContent = playerName || 'JGDR';
-}
-
-/* ==========================================
-   GAME LOOP
-   Bucle principal que ejecuta update y render cada frame
-   ========================================== */
-function gameLoop() {
-  if (!isPaused) updateGame();
-  renderGame();
-  requestAnimationFrame(gameLoop);
-}
-
-/* ==========================================
-   AUTH - TABS DE LOGIN / REGISTRO
-   Cambiar entre formularios de auth
-   ========================================== */
-document.querySelectorAll('.auth-tab').forEach(function(tab) {
-  tab.addEventListener('click', function(e) {
-    e.preventDefault();
-    document.querySelectorAll('.auth-tab').forEach(function(t) { t.classList.remove('active'); });
-    document.querySelectorAll('.auth-form').forEach(function(f) { f.classList.remove('active'); });
-    tab.classList.add('active');
-    var formId = tab.getAttribute('data-authtab') + 'Form';
-    document.getElementById(formId).classList.add('active');
-    document.getElementById('loginError').textContent = '';
-    document.getElementById('regError').textContent = '';
-  });
-});
-
-/* ==========================================
-   AUTH - REGISTRAR
-   Flujo manual completo sin depender de onAuthStateChanged
-   ========================================== */
-document.getElementById('btnRegister').addEventListener('click', function(e) {
-  e.preventDefault();
-  if (appReady) return;
-
-  /* Validar campos */
-  var username = document.getElementById('regUser').value.trim().toUpperCase();
-  var email = document.getElementById('regEmail').value.trim();
-  var password = document.getElementById('regPass').value;
-  var password2 = document.getElementById('regPass2').value;
-  var error = document.getElementById('regError');
-  error.textContent = '';
-
-  if (!username || username.length < 2) { error.textContent = 'Nombre muy corto'; return; }
-  if (!email || !email.includes('@')) { error.textContent = 'Correo invalido'; return; }
-  if (password.length < 6) { error.textContent = 'Clave muy corta (min 6)'; return; }
-  if (!password2) { error.textContent = 'Confirma la clave'; return; }
-  if (password !== password2) { error.textContent = 'Clave no coincide'; return; }
-  if (!firebaseReady || !databaseRef) { error.textContent = 'Sin conexion'; return; }
-
-  /* Deshabilitar botón y mostrar estado cargando */
-  var btn = document.getElementById('btnRegister');
-  btn.disabled = true;
-  btn.textContent = 'CREANDO...';
-
-  var oldPlayerId = playerId;
-
-  /* Bloquear onAuthStateChanged mientras registramos manualmente */
-  skipAuthListener = true;
-
-  /* Paso 1: verificar que el nombre no existe */
-  databaseRef.ref('users').orderByChild('username').equalTo(username).once('value').then(function(snapshot) {
-    if (snapshot.exists()) {
-      error.textContent = 'Nombre ya en uso';
-      btn.disabled = false;
-      btn.textContent = 'CREAR CUENTA';
-      skipAuthListener = false;
-      return null;
-    }
-
-    /* Paso 2: crear usuario en Firebase Auth */
-    return firebase.auth().createUserWithEmailAndPassword(email, password);
-  }).then(function(credential) {
-    if (!credential) return null;
-
-    /* Paso 3: actualizar displayName en Auth */
-    return credential.user.updateProfile({ displayName: username });
-  }).then(function(user) {
-    if (!user) {
-      skipAuthListener = false;
-      btn.disabled = false;
-      btn.textContent = 'CREAR CUENTA';
-      return null;
-    }
-
-    /* Paso 4: guardar perfil en la base de datos */
-    currentUser = user;
-    playerId = user.uid;
-    return databaseRef.ref('users/' + user.uid).set({
-      username: username,
-      email: email,
-      coins: 0, bestScore: 0, totalGames: 0, totalScore: 0, totalTime: 0,
-      prevId: oldPlayerId,
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      lastOnline: firebase.database.ServerValue.TIMESTAMP,
-      online: true
+  /* Particulas de explosion */
+  for(var i=0;i<20;i++){
+    particles.push({
+      x:player.x+player.w/2,y:player.y+player.h/2,
+      vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8-3,
+      life:25+Math.random()*20,maxLife:45,
+      color:i%2===0?'#ff2266':'#00ffaa',size:3+Math.random()*3
     });
-  }).then(function() {
-    if (!currentUser) {
-      skipAuthListener = false;
-      btn.disabled = false;
-      btn.textContent = 'CREAR CUENTA';
-      return;
-    }
-
-    /* Paso 5: guardar ID y migrar datos anteriores */
-    localStorage.setItem('nd_playerId', playerId);
-    if (oldPlayerId) localStorage.setItem('nd_prevId', oldPlayerId);
-
-    /* Paso 6: cargar perfil y mostrar pantalla de inicio */
-    return loadUserProfile(currentUser.uid);
-  }).then(function() {
-    skipAuthListener = false;
-    btn.disabled = false;
-    btn.textContent = 'CREAR CUENTA';
-
-    /* Paso 7: mostrar pantalla de inicio */
-    showStartScreen();
-  }).catch(function(error) {
-    skipAuthListener = false;
-    btn.disabled = false;
-    btn.textContent = 'CREAR CUENTA';
-
-    /* Manejar errores comunes de Auth */
-    var msg = error.code === 'auth/email-already-in-use' ? 'Correo ya registrado'
-            : error.code === 'auth/weak-password' ? 'Clave debil'
-            : error.code === 'auth/invalid-email' ? 'Correo invalido'
-            : error.message;
-    error.textContent = msg;
-  });
-});
-
-/* ==========================================
-   AUTH - LOGIN
-   Flujo manual completo sin depender de onAuthStateChanged
-   ========================================== */
-document.getElementById('btnLogin').addEventListener('click', function(e) {
-  e.preventDefault();
-  if (appReady) return;
-
-  var email = document.getElementById('loginEmail').value.trim();
-  var password = document.getElementById('loginPass').value;
-  var error = document.getElementById('loginError');
-  error.textContent = '';
-
-  if (!email || !email.includes('@')) { error.textContent = 'Correo invalido'; return; }
-  if (!password) { error.textContent = 'Escribe tu clave'; return; }
-
-  var btn = document.getElementById('btnLogin');
-  btn.disabled = true;
-  btn.textContent = 'ENTRANDO...';
-
-  /* Bloquear listener mientras hacemos login manualmente */
-  skipAuthListener = true;
-
-  /* Ejecutar signInWithEmailAndPassword */
-  firebase.auth().signInWithEmailAndPassword(email, password).then(function(credential) {
-    currentUser = credential.user;
-    playerId = credential.user.uid;
-    return loadUserProfile(credential.user.uid);
-  }).then(function() {
-    skipAuthListener = false;
-    btn.disabled = false;
-    btn.textContent = 'ENTRAR';
-
-    /* Mostrar pantalla de inicio */
-    showStartScreen();
-  }).catch(function(error) {
-    skipAuthListener = false;
-    btn.disabled = false;
-    btn.textContent = 'ENTRAR';
-
-    /* Manejar errores comunes de Auth */
-    var msg = error.code === 'auth/user-not-found' ? 'No encontrado'
-            : error.code === 'auth/wrong-password' ? 'Clave incorrecta'
-            : error.code === 'auth/invalid-credential' ? 'Datos incorrectos'
-            : error.code === 'auth/too-many-requests' ? 'Espera un momento'
-            : error.message;
-    error.textContent = msg;
-  });
-});
-
-/* ==========================================
-   AUTH - INVITADO
-   Permite jugar sin registrar una cuenta
-   ========================================== */
-document.getElementById('btnGuest').addEventListener('click', function(e) {
-  e.preventDefault();
-  userChoseGuest = true;
-  userProfile = null;
-  currentUser = null;
-  playerId = localStorage.getItem('nd_playerId') || ('p_' + Math.random().toString(36).substr(2, 9));
-  playerName = localStorage.getItem('nd_playerName') || '';
-  localStorage.setItem('nd_playerId', playerId);
-  showStartScreen();
-});
-
-/* ==========================================
-   AUTH - ON AUTH STATE CHANGED
-   Solo actúa en recarga de página y logout
-   (login/registro lo manejan manualmente)
-   ========================================== */
-firebase.auth().onAuthStateChanged(function(user) {
-  /* Si skipAuthListener está activo, no hacer nada */
-  if (skipAuthListener) return;
-
-  /* Si el usuario eligió ser invitado y no hay sesión, ignorar */
-  if (!user && userChoseGuest) return;
-
-  /* Si ya estamos listos con este usuario, no repetir */
-  if (appReady && user && currentUser && user.uid === currentUser.uid) return;
-
-  currentUser = user;
-
-  if (user) {
-    debugLog('Auto-login detectado para: ' + (user.displayName || user.uid), 'ok');
-    loadUserProfile(user.uid).then(function() { showStartScreen(); });
-  } else {
-    debugLog('Logout detectado', 'info');
-    userProfile = null;
-    showAuthScreen();
   }
-});
+  draw();
 
-/* ==========================================
-   PERFIL Y PANTALLAS
-   Carga, muestra y alterna entre pantallas
-   ========================================== */
+  var isNewRecord=score>bestScore;
+  if(isNewRecord){bestScore=score;showNewRecord();}
 
-/* Cargar perfil del usuario desde la base de datos */
-function loadUserProfile(uid) {
-  return new Promise(function(resolve) {
-    if (!firebaseReady || !databaseRef) { resolve(); return; }
-    return databaseRef.ref('users/' + uid).once('value').then(function(snapshot) {
-      userProfile = snapshot.val() || {};
-      userProfile._uid = uid;
-      playerId = uid;
-      playerName = userProfile.username || '';
-      bestScore = userProfile.bestScore || 0;
-      localStorage.setItem('nd_bestScore', bestScore);
-      if (userProfile.prevId) {
-        previousPlayerId = userProfile.prevId;
-        localStorage.setItem('nd_prevId', userProfile.prevId);
-      }
-      /* Marcar como online y configurar onDisconnect */
-      databaseRef.ref('users/' + uid).update({
-        online: true,
-        lastOnline: firebase.database.ServerValue.TIMESTAMP
-      }).catch(function() {});
-      databaseRef.ref('users/' + uid).onDisconnect().update({
-        online: false,
-        lastOnline: firebase.database.ServerValue.TIMESTAMP
-      });
-      resolve();
-    }).catch(function() { resolve(); });
-  });
-}
+  document.getElementById('goPlayerName').textContent=playerName;
+  document.getElementById('finalScore').textContent=score;
+  document.getElementById('finalCoins').textContent=coins;
+  document.getElementById('finalBest').textContent=bestScore;
+  document.getElementById('finalSpeed').textContent=maxSpeed.toFixed(1);
+  document.getElementById('finalTime').textContent=formatTime(gameTime);
 
-/* Guardar datos actualizados del usuario */
-function saveUserProfile(updates) {
-  if (!currentUser || !firebaseReady || !databaseRef) return Promise.resolve();
-  return databaseRef.ref('users/' + currentUser.uid).update(updates).catch(function() {});
-}
+  saveLocalGame(score,coins,maxSpeed,gameTime);
+  saveGameToFirebase(score,coins,maxSpeed,gameTime);
 
-/* Mostrar pantalla de autenticación */
-function showAuthScreen() {
-  userChoseGuest = false;
-  appReady = false;
-  gameState = 'start';
-  isPaused = true;
-  score = 0;
-  coins = 0;
-  speed = 5;
-  maxSpeed = 5;
-  player.alive = true;
-
-  document.getElementById('startScreen').classList.add('hidden');
-  document.getElementById('gameOverScreen').classList.add('hidden');
-  document.getElementById('historyScreen').classList.add('hidden');
-  document.getElementById('chatScreen').classList.add('hidden');
-  document.getElementById('pmScreen').classList.add('hidden');
-  document.getElementById('authScreen').classList.remove('hidden');
-  hudElement.classList.add('hidden');
-  document.getElementById('loginError').textContent = '';
-  document.getElementById('regError').textContent = '';
-  document.getElementById('btnLogin').disabled = false;
-  document.getElementById('btnLogin').textContent = 'ENTRAR';
-  document.getElementById('btnRegister').disabled = false;
-  document.getElementById('btnRegister').textContent = 'CREAR CUENTA';
-}
-
-/* Mostrar pantalla de inicio */
-function showStartScreen() {
-  appReady = true;
-  isPaused = false;
-  gameState = 'start';
-
-  document.getElementById('authScreen').classList.add('hidden');
-  document.getElementById('startScreen').classList.remove('hidden');
-  document.getElementById('gameOverScreen').classList.add('hidden');
-  document.getElementById('historyScreen').classList.add('hidden');
-  document.getElementById('chatScreen').classList.add('hidden');
-  document.getElementById('pmScreen').classList.add('hidden');
-  hudElement.classList.add('hidden');
-
-  var info = document.getElementById('loggedInInfo');
-  var coinsDisplay = document.getElementById('userCoinsDisplay');
-  var nameWrap = document.getElementById('nameInputWrap');
-  var nameInput = document.getElementById('playerName');
-
-  if (currentUser && userProfile) {
-    info.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' +
-      escapeHTML(userProfile.username) +
-      ' <span class="logout-link" id="logoutLink">CERRAR SESION</span></span>';
-    info.style.display = 'flex';
-    coinsDisplay.classList.remove('hidden');
-    document.getElementById('userTotalCoins').textContent = userProfile.coins || 0;
-    nameWrap.style.display = 'none';
-    nameInput.value = userProfile.username || '';
-    playerName = userProfile.username || '';
-    /* Evento de logout */
-    var logoutLink = document.getElementById('logoutLink');
-    if (logoutLink) {
-      logoutLink.addEventListener('click', function(e) {
-        e.preventDefault();
-        userChoseGuest = false;
-        firebase.auth().signOut();
-      });
-    }
-    listenFriendRequests();
-  } else {
-    info.style.display = 'none';
-    coinsDisplay.classList.add('hidden');
-    nameWrap.style.display = 'flex';
-    nameInput.value = playerName;
-    document.getElementById('friendNotifBadge').classList.add('hidden');
+  totalCoins+=coins;
+  if(currentUser&&!userChoseGuest&&database){
+    database.ref('users/'+playerUID).update({
+      coins:totalCoins,
+      bestScore:Math.max(bestScore,userProfile?(userProfile.bestScore||0):0)
+    }).catch(function(e){debugLog('Error update perfil: '+e.message,'err');});
   }
 
-  updateHudPlayer();
-  setPresence();
-  debugLog('Pantalla inicio lista. Nombre: ' + (playerName || '(vacio)'), 'ok');
+  setTimeout(function(){showScreen('gameOverScreen');},300);
 }
 
-/* ==========================================
-   AMIGOS - FUNCIONES
-   Sistema completo de amigos: solicitudes, aceptar, rechazar, buscar
-   ========================================== */
-
-/* Generar ID único para conversación privada */
-function getChatId(a, b) {
-  return [a, b].sort().join('_');
+function showNewRecord(){
+  var el=document.getElementById('newRecord');
+  el.classList.add('show');
+  setTimeout(function(){el.classList.remove('show');},2000);
 }
 
-/* Escuchar nombre para uso seguro en atributos onclick */
-function safeName(name) {
-  return escapeHTML(name).replace(/'/g, "\\'");
+function saveLocalGame(sc,co,sp,tm){
+  localHistory.push({date:Date.now(),score:sc,coins:co,speed:sp,time:tm});
+  if(localHistory.length>50)localHistory.shift();
+  try{localStorage.setItem('nd_history',JSON.stringify(localHistory));}catch(e){}
+  try{localStorage.setItem('nd_bestScore',bestScore);}catch(e){}
 }
 
-/* Escapar nombre para usarlo en atributos HTML */
-function safeAttr(name) {
-  return name.replace(/'/g, "\\'");
+function saveGameToFirebase(sc,co,sp,tm){
+  if(!database||!firebaseConnected){debugLog('Sin conexion - partida solo local','info');return;}
+  var entry={player:playerName,uid:playerUID,score:sc,coins:co,speed:parseFloat(sp.toFixed(1)),time:tm,date:firebase.database.ServerValue.TIMESTAMP};
+  database.ref('games').push(entry).then(function(){
+    debugLog('Partida guardada en Firebase','ok');
+    showSaveFlash();
+  }).catch(function(e){debugLog('Error guardando: '+e.message,'err');});
 }
 
-/* Listener de solicitudes de amistad */
-function listenFriendRequests() {
-  if (!currentUser || !firebaseReady || !databaseRef) return;
-  if (friendRequestListener) databaseRef.ref('friendRequests').off('value', friendRequestListener);
-  friendRequestListener = databaseRef.ref('friendRequests').orderByChild('to').equalTo(currentUser.uid).on('value', function(snapshot) {
-    friendRequests = {};
-    pendingRequests = 0;
-    var data = snapshot.val();
-    if (data) {
-      Object.keys(data).forEach(function(key) {
-        if (data[key].status === 'pending') {
-          friendRequests[key] = data[key];
-          pendingRequests++;
-        }
-      });
-    }
-    var badge = document.getElementById('friendNotifBadge');
-    if (pendingRequests > 0) {
-      badge.textContent = pendingRequests;
-      badge.classList.remove('hidden');
-    } else {
-      badge.classList.add('hidden');
-    }
-    renderRequestsList();
-  });
+function showSaveFlash(){
+  var el=document.getElementById('saveFlash');
+  el.classList.add('show');
+  setTimeout(function(){el.classList.remove('show');},1500);
 }
 
-/* Enviar solicitud de amistad */
-function sendFriendRequest(toUid, toName) {
-  if (!currentUser || !firebaseReady || !databaseRef || toUid === playerId) return;
-  databaseRef.ref('friends/' + currentUser.uid + '/' + toUid).once('value').then(function(snapshot) {
-    if (snapshot.exists()) return;
-    return databaseRef.ref('friendRequests').orderByChild('from').equalTo(currentUser.uid).once('value').then(function(snapshot) {
-      if (!snapshot) return;
-      var data = snapshot.val();
-      if (data) {
-        for (var k in data) {
-          if (data[k].to === toUid && data[k].status === 'pending') return;
-        }
-      }
-      return databaseRef.ref('friendRequests').push({
-        from: currentUser.uid, to: toUid,
-        fromName: userProfile.username || 'ANON',
-        toName: toName, status: 'pending',
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-      });
-    }).catch(function() {});
-  });
+function loadLocalHistory(){
+  try{localHistory=JSON.parse(localStorage.getItem('nd_history'))||[];}catch(e){localHistory=[];}
+  try{bestScore=parseInt(localStorage.getItem('nd_bestScore'))||0;}catch(e){}
 }
-
-/* Aceptar solicitud de amistad */
-function acceptFriendRequest(id) {
-  if (!firebaseReady || !databaseRef) return;
-  var req = friendRequests[id];
-  if (!req) return;
-  var updates = {};
-  updates['friendRequests/' + id + '/status'] = 'accepted';
-  updates['friends/' + req.from + '/' + req.to] = true;
-  updates['friends/' + req.to + '/' + req.from] = true;
-  databaseRef.ref().update(updates).catch(function() {});
-}
-
-/* Rechazar solicitud de amistad */
-function rejectFriendRequest(id) {
-  if (!firebaseReady || !databaseRef) return;
-  databaseRef.ref('friendRequests/' + id).update({ status: 'rejected' }).catch(function() {});
-}
-
-/* Renderizar lista de solicitudes pendientes */
-function renderRequestsList() {
-  var element = document.getElementById('requestsList');
-  var title = document.getElementById('requestsTitle');
-  var keys = Object.keys(friendRequests);
-  if (!keys.length) { element.innerHTML = ''; title.style.display = 'none'; return; }
-  title.style.display = 'block';
-  var html = '';
-  keys.forEach(function(key) {
-    var req = friendRequests[key];
-    html += '<div class="friend-card">' +
-      '<div class="friend-avatar" style="background:rgba(255,170,0,0.1);border-color:rgba(255,170,0,0.2);color:var(--accent3)">' +
-        escapeHTML((req.fromName || '?').charAt(0)) + '</div>' +
-      '<div class="friend-info"><div class="friend-name">' +
-        escapeHTML(req.fromName || '???') + '</div>' +
-        '<div class="friend-meta">Quiere ser tu amigo</div></div>' +
-      '<div class="friend-actions">' +
-        '<button type="button" class="btn tiny" style="border-color:var(--accent);color:var(--accent)" onclick="acceptFriendRequest(\'' + key + '\')">' +
-          '<i class="fa-solid fa-check"></i></button>' +
-        '<button type="button" class="btn tiny danger" onclick="rejectFriendRequest(\'' + key + '\')">' +
-          '<i class="fa-solid fa-xmark"></i></button>' +
-        '</div></div></div>';
-  });
-  element.innerHTML = html;
-}
-
-/* Cargar lista de amigos */
-function loadFriends() {
-  if (!currentUser || !firebaseReady || !databaseRef) {
-    document.getElementById('friendsList').innerHTML = '<div class="no-friends">Inicia sesion para ver amigos</div>';
-    return;
-  }
-  databaseRef.ref('friends/' + currentUser.uid).once('value').then(function(snapshot) {
-    var friends = snapshot.val();
-    if (!friends) {
-      document.getElementById('friendsList').innerHTML = '<div class="no-friends">Sin amigos</div>';
-      return;
-    }
-    var uids = Object.keys(friends);
-    if (!uids.length) {
-      document.getElementById('friendsList').innerHTML = '<div class="no-friends">Sin amigos</div>';
-      return;
-    }
-    Promise.all(uids.map(function(uid) {
-      return databaseRef.ref('users/' + uid).once('value');
-    })).then(function(snapshots) {
-      var html = '';
-      snapshots.forEach(function(s) {
-        var user = s.val();
-        if (!user) return;
-        var safeName = safeName(user.username || '???');
-        html += '<div class="friend-card">' +
-          '<div class="friend-avatar">' + escapeHTML((user.username || '?').charAt(0)) + '</div>' +
-          '<div class="friend-info">' +
-          '<div class="friend-name">' + escapeHTML(user.username || '???') + '</div>' +
-          '<div class="friend-meta">' +
-          (user.online ? 'En linea' : 'Offline') +
-          ' | Mejor: ' + (user.bestScore || 0)) +
-          '</div></div></div>' +
-          '<div class="friend-status-dot ' + (user.online ? 'online' : 'offline') + '"></div>' +
-          '<div class="friend-actions"><button type="button" class="btn pm-btn tiny" onclick="openPrivateMessage(\'' +
-          s.key + '\',\'' + safeName + '\')">' +
-          '<i class="fa-solid fa-envelope"></i></button></div></div></div>';
-      });
-      document.getElementById('friendsList').innerHTML = html ||
-        '<div class="no-friends">Sin resultados</div>';
-    });
-  }).catch(function() {
-    document.getElementById('friendsList').innerHTML = '<div class="no-friends">Error</div>';
-  });
-}
-
-/* Buscar jugadores por nombre */
-var searchTimeout = null;
-document.getElementById('friendSearchInput').addEventListener('input', function() {
-  var query = this.value.trim().toUpperCase();
-  var resultsEl = document.getElementById('friendSearchResults');
-  clearTimeout(searchTimeout);
-
-  if (!query || query.length < 2) { resultsEl.innerHTML = ''; return; }
-  if (!firebaseReady || !databaseRef) { resultsEl.innerHTML = ''; return; }
-
-  searchTimeout = setTimeout(function() {
-    databaseRef.ref('users').orderByChild('username').startAt(query).endAt(query + '\uf8ff').limitToFirst(10).once('value').then(function(snapshot) {
-      var data = snapshot.val();
-      var html = '';
-      if (data) {
-        Object.keys(data).forEach(function(key) {
-          var user = data[key];
-          if (key === playerId) return;
-          var safeName = safeName(user.username || '???');
-          html += '<div class="friend-card">' +
-            '<div class="friend-avatar">' + escapeHTML((user.username || '?').charAt(0)) + '</div>' +
-            '<div class="friend-info"><div class="friend-name">' + escapeHTML(user.username || '???') + '</div>' +
-            '<div class="friend-meta">Mejor: ' + (user.bestScore || 0) + '</div></div></div>' +
-            '<div class="friend-actions"><button type="button" class="btn pm-btn tiny" onclick="sendFriendRequest(\'' + key + '\',\'' + safeName + '\')">' +
-            '<i class="fa-solid fa-user-plus"></i></button></div></div></div>';
-        });
-      }
-      resultsEl.innerHTML = html || '<div class="no-friends">Sin resultados</div>';
-    }).catch(function() { resultsEl.innerHTML = ''; });
-  }, 400);
-});
-
-/* ==========================================
-   CHAT GRUPAL - CONEXIÓN Y ENVÍO
-   Sistema de chat en tiempo real con Groq AI
-   ========================================== */
-
-/* Abrir pantalla de chat */
-function openChat() {
-  document.getElementById('chatScreen').classList.remove('hidden');
-  if (firebaseReady && databaseRef && !chatListener) {
-
-    lastChatTimestamp = Date.now() - 60000;
-    chatMessages = [];
-    seenChatKeys = {};
-
-    document.getElementById('chatMessages').innerHTML = '<div class="chat-system-msg">Conectando...</div>';
-    chatListener = databaseRef.ref('chat').orderByChild('timestamp')
-      .startAt(lastChatTimestamp).limitToLast(50).on('value', function(snapshot) {
-        var data = snapshot.val();
-        if (!data) return;
-
-        var messages = [];
-        Object.keys(data).forEach(function(key) {
-          data[key]._key = key;
-          messages.push(data[key]);
-        });
-        messages.sort(function(a, b) {
-          return (a.timestamp || 0) - (b.timestamp || 0);
-        });
-
-        /* Filtrar mensajes nuevos que no hayamos visto */
-        var newMessages = messages.filter(function(msg) {
-          if (seenChatKeys[msg._key]) return false;
-          return msg.timestamp > lastChatTimestamp;
-        });
-
-        /* Carga inicial: marcar todos como vistos */
-        if (newMessages.length === 0 && chatMessages.length === 0) {
-          messages.forEach(function(m) { seenChatKeys[m._key] = true; });
-          chatMessages = messages.slice(-30);
-          renderChat();
-          return;
-        }
-
-        /* Agregar nuevos y marcar como vistos */
-        newMessages.forEach(function(m) {
-          seenChatKeys[m._key] = true;
-          chatMessages.push(m);
-        });
-        if (chatMessages.length > 80) chatMessages = chatMessages.slice(-50);
-
-        lastChatTimestamp = Math.max.apply(null, newMessages.map(function(m) { return m.timestamp || 0; }));
-        renderChat();
-
-        /* Verificar si hay mención a la IA */
-        newMessages.forEach(function(m) {
-          if (m.text && m.text.toLowerCase().includes('@juego') &&
-              m.uid !== playerId && !aiBusy && Date.now() - lastAiTime > AI_COOLDOWN) {
-            callGroqAI(m.text.replace(/@juego/gi, '').trim(), m.name || 'Alguien');
-          }
-        });
-      });
-    });
-
-    /* Marcar como online y configurar onDisconnect */
-    if (currentUser) {
-      databaseRef.ref('presence/' + currentUser.uid).set(true);
-      databaseRef.ref('presence/' + currentUser.uid).onDisconnect().remove();
-    }
-  }
-}
-
-/* Cerrar chat */
-function closeChat() {
-  document.getElementById('chatScreen').classList.add('hidden');
-  if (currentUser && databaseRef) {
-    databaseRef.ref('presence/' + currentUser.uid).remove().catch(function() {});
-  }
-}
-
-/* Renderizar mensajes del chat en pantalla */
-function renderChat() {
-  var element = document.getElementById('chatMessages');
-  var html = '';
-  var wasAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 60;
-
-  chatMessages.forEach(function(msg) {
-    var isMine = msg.uid === playerId;
-    var isAI = msg.isAI;
-    var cls = isMine ? 'mine' : isAI ? 'ai' : 'other';
-    var name = isMine ? (playerName || 'YO') : isAI ? 'NEON' : (msg.name || '???');
-    var time = msg.timestamp ? formatDate(msg.timestamp) : '';
-    var text = escapeHTML(msg.text || '').replace(/@(\w+)/gi, '<span class="mention">@$1</span>');
-
-    html += '<div class="chat-msg ' + cls + '">' +
-      '<div class="chat-msg-header">' +
-      '<span class="chat-msg-name">' +
-        (isAI ? '<i class="fa-solid fa-robot"></i> ' : '') +
-        escapeHTML(name) +
-      '</span>' +
-      '<span class="chat-msg-time">' + time + '</span>' +
-      '</div>' +
-      '<div class="chat-msg-text">' + text + '</div></div></div>';
-  });
-
-  element.innerHTML = html || '<div class="chat-system-msg">Sin mensajes</div>';
-  if (wasAtBottom) element.scrollTop = element.scrollHeight;
-}
-
-/* Enviar mensaje al chat */
-function sendChatMessage() {
-  var input = document.getElementById('chatInput');
-  var text = input.value.trim();
-  if (!text) return;
-  input.value = '';
-  if (!firebaseReady || !databaseRef) return;
-
-  databaseRef.ref('chat').push({
-    uid: playerId,
-    name: playerName || 'JUGADOR',
-    text: text,
-    timestamp: firebase.database.ServerValue.TIMESTAMP,
-    isAI: false
-  }).catch(function() {});
-
-  /* Si incluye @juego, llamar a la IA */
-  if (text.toLowerCase().includes('@juego') &&
-      !aiBusy && Date.now() - lastAiTime > AI_COOLDOWN) {
-    callGroqAI(
-      text.replace(/@juego/gi, '').trim(),
-      playerName || 'Jugador'
-    );
-  }
-}
-
-/* Llamar a la API de Groq para respuesta de IA */
-function callGroqAI(userText, userName) {
-  if (aiBusy) return;
-  aiBusy = true;
-  lastAiTime = Date.now();
-  document.getElementById('typingIndicator').classList.remove('hidden');
-
-  /* Construir historial de mensajes para contexto */
-  var history = chatMessages.slice(-10).map(function(m) {
-    return { role: m.isAI ? 'assistant' : 'user', content: (m.isAI ? 'NEON' : (m.name || 'Alguien') + ': ' + (m.text || '') };
-  });
-  history.push({ role: 'user', content: userName + ' dice: ' + userText });
-
-  fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + GROQ_API_KEY
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [
-        { role: 'system', content: 'Eres NEON, IA de Neon Dash. REGLAS: SIEMPRE en espanol, NUNCA rompas personaje, max 3-4 oraciones, tono sarcastico pero leal.' },
-        ...history.slice(-8)
-      ],
-      max_tokens: 150,
-      temperature: 0.8
-    })
-  }).then(function(response) {
-    return response.json();
-  }).then(function(data) {
-    var reply = data.choices && data.choices && data.choices[0] && data.choices[0].message
-      ? data.choices[0].message : '...';
-
-    databaseRef.ref('chat').push({
-      uid: '_neon_ai_',
-      name: 'NEON',
-      text: reply,
-      timestamp: firebase.database.ServerValue.TIMESTAMP,
-      isAI: true
-    }).catch(function() {
-      databaseRef.ref('chat').push({
-        uid: '_neon_ai_',
-        name: 'NEON',
-        text: 'Error de conexion.',
-        timestamp: firebase.database.ServerValue.TIMESTAMP,
-        isAI: true
-      }).catch(function() {});
-    });
-  }).finally(function() {
-    aiBusy = false;
-    document.getElementById('typingIndicator').classList.add('hidden');
-  });
-}
-
-/* ==========================================
-   MENSAJES PRIVADOS
-   Sistema de mensajes directos entre dos usuarios
-   ========================================== */
-
-/* Abrir pantalla de mensaje privado */
-function openPrivateMessage(uid, name) {
-  /* Desconectar listener anterior si existe */
-  if (pmListener && databaseRef) {
-    databaseRef.ref('privateMessages/' + getChatId(playerId, uid)).off('value', pmListener);
-  }
-
-  pmTarget = uid;
-  pmTargetName = name;
-
-  document.getElementById('pmTitle').innerHTML = '<i class="fa-solid fa-lock"></i> ' + escapeHTML(name);
-  document.getElementById('pmMessages').innerHTML = '<div class="chat-system-msg">Cargando...</div>';
-  document.getElementById('pmScreen').classList.remove('hidden');
-
-  /* Crear listener para esta conversación */
-  var chatId = getChatId(playerId, uid);
-  pmListener = databaseRef.ref('privateMessages/' + chatId)
-    .orderByChild('timestamp').limitToLast(50).on('value', function(snapshot) {
-      var data = snapshot.val();
-      var messages = [];
-      if (data) {
-        Object.keys(data).forEach(function(key) {
-          data[key]._key = key;
-          messages.push(data[key]);
-        });
-      }
-      messages.sort(function(a, b) { return (a.timestamp || 0) - (b.timestamp || 0); });
-      var element = document.getElementById('pmMessages');
-      var html = '';
-      var wasBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 60;
-
-      messages.forEach(function(m) {
-        var isMine = m.from === playerId;
-        html += '<div class="pm ' + (isMine ? 'mi' : 'ot') + '">' +
-          '<div class="pmh2"><span class="pmn ' + (isMine ? (playerName || 'YO') : (m.fromName || '???')) + '</span>' +
-          '<span class="pmt">' + (m.timestamp ? formatDate(m.timestamp) : '') + '</span></div>' +
-          '<div class="pmtx">' + escapeHTML(m.text || '') + '</div></div></div>';
-      });
-      element.innerHTML = html || '<div class="chat-system-msg">Sin mensajes. Escribe algo!</div>';
-      if (wasBottom) element.scrollTop = element.scrollHeight;
-    });
-  });
-}
-
-/* Cerrar pantalla de mensaje privado */
-function closePrivateMessage() {
-  document.getElementById('pmScreen').classList.add('hidden');
-  if (pmListener && databaseRef && pmTarget) {
-    databaseRef.ref('privateMessages/' + getChatId(playerId, pmTarget)).off('value', pmListener);
-  }
-  pmTarget = null;
-  pmTargetName = '';
-  pmListener = null;
-}
-
-/* Enviar mensaje privado */
-function sendPrivateMessage() {
-  var input = document.getElementById('pmInput');
-  var text = input.value.trim();
-  if (!text || !pmTarget) return;
-  input.value = '';
-  if (!firebaseReady || !databaseRef) return;
-  databaseRef.ref('privateMessages/' + getChatId(playerId, pmTarget)).push({
-    from: playerId,
-    to: pmTarget,
-    fromName: playerName || 'JUGADOR',
-    toName: pmTargetName,
-    text: text,
-    timestamp: firebase.database.ServerValue.TIMESTAMP
-  }).catch(function() {});
-}
-
-/* ==========================================
-   HISTORIAL Y RANKING
-   Guarda, carga y muestra partidas en la base de datos y local
-   ========================================== */
-
-/* Abrir pantalla de historial/ranking */
-function openHistory() {
-  document.getElementById('historyScreen').classList.remove('hidden');
-  document.getElementById('startScreen').classList.add('hidden');
-  document.getElementById('gameOverScreen').classList.add('hidden');
-  loadGlobalRanking();
-  loadLocalHistory();
-  loadFriends();
-}
-
-/* Cargar ranking global desde Firebase */
-function loadGlobalRanking() {
-  var body = document.getElementById('globalBody');
-  body.innerHTML = '<tr><td colspan="7" class="loading-text"><i class="fa-solid fa-circle-notch"></i> Cargando...</td></tr>';
-  if (!firebaseReady || !databaseRef) {
-    body.innerHTML = '<tr><td colspan="7" class="empty-history">Sin conexion</td></tr>';
-    return;
-  }
-
-  databaseRef.ref('games').orderByChild('score').limitToLast(30).once('value').then(function(snapshot) {
-    var data = snapshot.val();
-    var array = [];
-    if (data) {
-      Object.keys(data).forEach(function(key) {
-        data[key]._key = key;
-        array.push(data[key]);
-      });
-    }
-    array.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
-    if (!array.length) {
-      body.innerHTML = '<tr><td colspan="7" class="empty-history">Sin partidas</td></tr>';
-      return;
-    }
-
-    var html = '';
-    array.forEach(function(game, i) {
-      var rank = i + 1;
-      var rankClass = rank <= 3 ? 'rank-' + rank : 'rank-n';
-      var isMe = game.uid === playerId;
-      html += '<tr class="' + (isMe ? 'mr' : '') + '">' +
-        '<td><span class="rank-badge ' + rankClass + '">' + rank + '</span></td>' +
-        '<td>' + escapeHTML(game.name || '???') + '</td>' +
-        '<td>' + (game.score || 0) + '</td>' +
-        '<td>' + (game.coins || 0) + '</td>' +
-        '<td>' + (game.maxSpeed || 0).toFixed(1) + '</td>' +
-        '<td>' + formatDate(game.date || 0) + '</td></tr>';
-    });
-    body.innerHTML = html;
-  }).catch(function() {
-    body.innerHTML = '<tr><td colspan="7" class="empty-history">Error</td></tr>';
-  });
-}
-
-/* Cargar historial local desde localStorage */
-function loadLocalHistory() {
-  var local = JSON.parse(localStorage.getItem('nd_localHistory') || '[]');
-  var totalGames = local.length, totalScore = 0, totalCoins = 0, totalTime = 0;
-  local.forEach(function(game) { totalScore += game.score || 0; totalCoins += game.coins || 0; totalTime += game.time || 0; });
-
-  document.getElementById('lsGames').textContent = totalGames;
-  document.getElementById('lsBest').textContent = bestScore;
-  document.getElementById('lsCoins').textContent = totalCoins;
-  document.getElementById('lsAvg').textContent = totalGames ? Math.floor(totalScore / totalGames) : 0;
-  document.getElementById('lsTime').textContent = formatTime(totalTime);
-
-  var body = document.getElementById('localBody');
-  var html = '';
-  if (!local.length) {
-    body.innerHTML = '<tr><td colspan="6" class="empty-history">Sin partidas locales</td></tr>';
-    return;
-  }
-  local.slice().reverse().slice(0, 20).forEach(function(game, i) {
-    html += '<tr><td>' + (local.length - i) + '</td><td>' + formatDate(game.date || 0) + '</td><td>' + (game.score || 0) + '</td><td>' + (game.maxSpeed || 0).toFixed(1) + '</td><td>' + formatTime(game.time || 0) + '</td></tr>';
-  });
-  body.innerHTML = html;
-}
-
-/* Guardar resultado del juego actual */
-function saveGameResult() {
-  var result = {
-    uid: playerId,
-    name: playerName || 'JUGADOR',
-    score: score,
-    coins: coins,
-    maxSpeed: maxSpeed,
-    time: gameElapsed,
-    date: Date.now()
-  };
-
-  /* Guardar en localStorage */
-  var local = JSON.parse(localStorage.getItem('nd_localHistory') || '[]');
-  local.push(result);
-  if (local.length > 50) local = local.slice(-50);
-  localStorage.setItem('nd_localHistory', JSON.stringify(local));
-
-  /* Guardar online también */
-  if (firebaseReady && databaseRef) {
-    databaseRef.ref('games').push(result).catch(function() {});
-
-    if (currentUser && userProfile) {
-      var newCoins = (userProfile.coins || 0) + coins;
-      var newBest = Math.max(userProfile.bestScore || 0, score);
-      saveUserProfile({
-        coins: newCoins,
-        bestScore: newBest,
-        totalGames: (userProfile.totalGames || 0) + 1,
-        totalScore: (userProfile.totalScore || 0) + score,
-        totalTime: (userProfile.totalTime || 0) + gameElapsed,
-        lastOnline: firebase.database.ServerValue.TIMESTAMP
-      });
-      userProfile.coins = newCoins;
-      userProfile.bestScore = newBest;
-    }
-
-    /* Flash de "GUARDADO" */
-    var flash = document.getElementById('saveFlash');
-    flash.classList.add('show');
-    setTimeout(function() { flash.classList.remove('show'); }, 1500);
-  }
-}
-
-/* Establecer presencia del jugador en Firebase */
-function setPresence() {
-  if (!firebaseReady || !databaseRef) return;
-  databaseRef.ref('users/' + playerId).update({
-    online: true,
-    lastOnline: firebase.database.ServerValue.TIMESTAMP
-  }).catch(function() {});
-  databaseRef.ref('users/' + playerId).onDisconnect().update({
-    online: false,
-    lastOnline: firebase.database.ServerValue.TIMESTAMP
-  });
-}
-
-/* ==========================================
-   EVENT LISTENERS
-   Conecta botones a sus funciones correspondientes
-   ========================================== */
-
-/* Tabs del ranking */
-document.querySelectorAll('.tab-btn').forEach(function(tab) {
-  tab.addEventListener('click', function() {
-    document.querySelectorAll('.tab-btn').forEach(function(t) { t.classList.remove('active'); });
-    document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.remove('active'); });
-    tab.classList.add('active');
-    var tabId = tab.getAttribute('data-tab');
-    document.getElementById('tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1)).classList.add('active');
-    if (tabId === 'friends') loadFriends();
-    if (tabId === 'global') loadGlobalRanking();
-  });
-});
-
-/* Botón JUGAR */
-document.getElementById('btnStart').addEventListener('click', startGame);
-document.getElementById('btnHistory').addEventListener('click', openHistory);
-document.getElementById('btnChat').addEventListener('click', openChat);
-document.getElementById('btnFriends').addEventListener('click', function() {
-  document.getElementById('historyScreen').classList.remove('hidden');
-  document.getElementById('startScreen').classList.add('hidden');
-  document.querySelectorAll('.tab-btn').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.remove('active'); });
-  document.querySelector('[data-tab="friends"]').classList.add('active');
-  document.getElementById('tabFriends').classList.add('active');
-  loadFriends();
-});
 
 /* Botones de game over */
-document.getElementById('btnRestart').addEventListener('click', startGame);
-document.getElementById('btnHistory2').addEventListener('click', openHistory);
-document.getElementById('btnChat2').addEventListener('click', openChat);
-document.getElementById('btnBack').addEventListener('click', function() {
-  document.getElementById('historyScreen').classList.add('hidden');
-  if (gameState === 'start') document.getElementById('startScreen').classList.remove('hidden');
-  else if (gameState === 'over') document.getElementById('gameOverScreen').classList.remove('hidden');
+document.getElementById('btnRestart').addEventListener('click',startGame);
+document.getElementById('btnHistory2').addEventListener('click',openHistory);
+document.getElementById('btnChat2').addEventListener('click',openChat);
+
+/* ================================================================
+   RANKING / HISTORIAL
+   ================================================================ */
+function openHistory(){
+  showScreen('historyScreen');
+  loadGlobalRanking();
+  renderLocalHistory();
+}
+
+document.querySelectorAll('.tab-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
+    btn.classList.add('active');
+    var tab=btn.getAttribute('data-tab');
+    document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove('active')});
+    document.getElementById('tab'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+    if(tab==='global')loadGlobalRanking();
+    if(tab==='local')renderLocalHistory();
+    if(tab==='friends')loadFriendsRanking();
+  });
 });
 
-/* Botones del HUD */
-document.getElementById('hudFriendsBtn').addEventListener('click', function() {
-  document.getElementById('historyScreen').classList.remove('hidden');
-  document.getElementById('startScreen').classList.add('hidden');
-  document.querySelectorAll('.tab-btn').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.remove('active'); });
-  document.querySelector('[data-tab="friends"]').classList.add('active');
-  document.getElementById('tabFriends').classList.add('active');
-  loadFriends();
-});
-document.getElementById('hudChatBtn').addEventListener('click', openChat);
-document.getElementById('hudFriendsBtn').addEventListener('click', function() {
-  document.getElementById('historyScreen').classList.remove('hidden');
-  document.querySelectorAll('.tab-btn').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.remove('active'); });
-  document.querySelector('[data-tab="friends"]').classList.add('active');
-  document.getElementById('tabFriends').classList.add('active');
-  loadFriends();
-});
-document.getElementById('btnChatClose').addEventListener('click', closeChat);
-document.getElementById('btnChatSend').addEventListener('click', sendChatMessage);
-document.getElementById('chatInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
-});
-document.getElementById('btnPmBack').addEventListener('click', closePrivateMessage);
-document.getElementById('btnPmClose').addEventListener('click', closePrivateMessage);
-document.getElementById('btnPmSend').addEventListener('click', sendPrivateMessage);
-document.getElementById('pmInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); sendPrivateMessage(); }
-});
-document.getElementById('hudFriendsBtn').addEventListener('click', function() {
-  document.getElementById('historyScreen').classList.remove('hidden');
-  document.querySelectorAll('.tab-btn').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.remove('active'); });
-  document.querySelector('[data-tab="friends"]').classList.add('active');
-  document.getElementById('tabFriends').classList.add('active');
-  loadFriends();
-});
-document.getElementById('hudChatBtn').addEventListener('click', openChat);
+document.getElementById('btnBack').addEventListener('click',function(){showScreen('startScreen');});
 
-/* Controles del teclado y touch */
-document.addEventListener('keydown', function(e) {
-  if (e.code === 'Space' || e.key === ' ' || e.code === 'ArrowUp') {
-    e.preventDefault();
-    if (gameState === 'playing') playerJump();
-    else if (gameState === 'over' && !document.getElementById('gameOverScreen').classList.contains('hidden')) startGame();
+function loadGlobalRanking(){
+  var body=document.getElementById('globalBody');
+  if(!database||!firebaseConnected){
+    body.innerHTML='<tr><td colspan="7" class="empty-history">Sin conexion a Firebase</td></tr>';return;
   }
-});
-canvas.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  if (gameState === 'playing') playerJump();
-});
-canvas.addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
+  body.innerHTML='<tr><td colspan="7" class="loading-text"><i class="fa-solid fa-circle-notch"></i> Cargando...</td></tr>';
+  database.ref('games').orderByChild('score').limitToLast(50).once('value').then(function(snap){
+    var data=[];snap.forEach(function(child){data.push(child.val());});
+    data.sort(function(a,b){return b.score-a.score;});
+    if(!data.length){body.innerHTML='<tr><td colspan="7" class="empty-history">Sin partidas registradas</td></tr>';return;}
+    var html='';
+    data.forEach(function(g,i){
+      var rank=i+1;
+      var rCls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-n';
+      var isMe=(g.uid===playerUID)?' me-row':'';
+      html+='<tr class="'+isMe+'"><td><span class="rank-badge '+rCls+'">'+rank+'</span></td><td>'+escapeHTML(g.player||'?')+'</td><td>'+g.score+'</td><td>'+(g.coins||0)+'</td><td>'+(g.speed||0)+'</td><td>'+formatTime(g.time||0)+'</td><td>'+formatDate(g.date)+'</td></tr>';
+    });
+    body.innerHTML=html;
+  }).catch(function(e){
+    body.innerHTML='<tr><td colspan="7" class="empty-history">Error al cargar</td></tr>';
+    debugLog('Error ranking: '+e.message,'err');
+  });
+}
 
-/* Enter en campos de auth */
-document.getElementById('loginPass').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') document.getElementById('btnLogin').click();
-});
-document.getElementById('regPass2').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') document.getElementById('btnRegister').click();
+function renderLocalHistory(){
+  loadLocalHistory();
+  var body=document.getElementById('localBody');
+  var totalGames=localHistory.length,totalCoinsL=0,totalTime=0,totalScore=0;
+  localHistory.forEach(function(g){totalCoinsL+=g.coins||0;totalTime+=g.time||0;totalScore+=g.score||0;});
+  document.getElementById('lsGames').textContent=totalGames;
+  document.getElementById('lsBest').textContent=bestScore;
+  document.getElementById('lsCoins').textContent=totalCoinsL;
+  document.getElementById('lsAvg').textContent=totalGames>0?Math.round(totalScore/totalGames):0;
+  document.getElementById('lsTime').textContent=formatTime(totalTime);
+  if(!totalGames){body.innerHTML='<tr><td colspan="6" class="empty-history">Sin partidas locales</td></tr>';return;}
+  var html='';
+  localHistory.slice().reverse().forEach(function(g,i){
+    html+='<tr><td>'+(i+1)+'</td><td>'+formatDate(g.date)+'</td><td>'+g.score+'</td><td>'+g.coins+'</td><td>'+(g.speed||0).toFixed(1)+'</td><td>'+formatTime(g.time)+'</td></tr>';
+  });
+  body.innerHTML=html;
+}
+
+/* ================================================================
+   SISTEMA DE CHAT CON IA (GROQ)
+   ================================================================ */
+var chatMessages=[];
+var chatLoaded=false;
+
+function openChat(){
+  showScreen('chatScreen');
+  if(!chatLoaded)loadChatMessages();
+  loadOnlineCount();
+}
+
+document.getElementById('btnChatClose').addEventListener('click',function(){showScreen('startScreen');});
+document.getElementById('btnChatSend').addEventListener('click',sendChatMessage);
+document.getElementById('chatInput').addEventListener('keydown',function(e){if(e.key==='Enter')sendChatMessage();});
+
+function sendChatMessage(){
+  var input=document.getElementById('chatInput');
+  var text=input.value.trim();
+  if(!text)return;
+  input.value='';
+
+  var msg={text:text,sender:playerName,uid:playerUID,time:Date.now(),type:'user'};
+  chatMessages.push(msg);
+  renderChatMessage(msg);
+
+  if(database&&firebaseConnected){
+    database.ref('chat').push({text:text,sender:playerName,uid:playerUID,time:firebase.database.ServerValue.TIMESTAMP,type:'user'}).catch(function(e){debugLog('Error chat: '+e.message,'err');});
+  }
+
+  if(text.toLowerCase().indexOf('@juego')!==-1)respondWithAI(text);
+}
+
+function respondWithAI(userText){
+  var indicator=document.getElementById('typingIndicator');
+  indicator.classList.remove('hidden');
+  var cleanText=userText.replace(/@juego/gi,'').trim();
+  var systemPrompt='Eres NEON, la IA del juego NEON DASH. Responde de forma corta (max 2 frases), con estilo cyberpunk/neon, en espanol. El juego es un runner infinito donde saltas obstaculos y recolectas monedas. Anima a los jugadores y da tips breves.';
+
+  fetch('https://api.groq.com/openai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+GROQ_API_KEY},
+    body:JSON.stringify({model:GROQ_MODEL,messages:[{role:'system',content:systemPrompt},{role:'user',content:cleanText}],max_tokens:100,temperature:0.7})
+  }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(data){
+    indicator.classList.add('hidden');
+    var reply=data.choices&&data.choices[0]&&data.choices[0].message?data.choices[0].message.content:'...';
+    var aiMsg={text:reply,sender:'NEON',uid:'ai',time:Date.now(),type:'ai'};
+    chatMessages.push(aiMsg);renderChatMessage(aiMsg);
+    if(database&&firebaseConnected){
+      database.ref('chat').push({text:reply,sender:'NEON',uid:'ai',time:firebase.database.ServerValue.TIMESTAMP,type:'ai'}).catch(function(){});
+    }
+  }).catch(function(e){
+    indicator.classList.add('hidden');
+    debugLog('Error IA: '+e.message,'err');
+    var errMsg={text:'Error de conexion con mi cerebro neon...',sender:'NEON',uid:'ai',time:Date.now(),type:'ai'};
+    chatMessages.push(errMsg);renderChatMessage(errMsg);
+  });
+}
+
+function loadChatMessages(){
+  chatLoaded=true;
+  var container=document.getElementById('chatMessages');
+  container.innerHTML='';
+  if(!database||!firebaseConnected){container.innerHTML='<div class="chat-system-msg">Sin conexion - chat local</div>';return;}
+
+  database.ref('chat').orderByChild('time').limitToLast(30).once('value').then(function(snap){
+    chatMessages=[];snap.forEach(function(child){chatMessages.push(child.val());});
+    container.innerHTML='';
+    chatMessages.forEach(function(m){renderChatMessage(m,false);});
+    if(chatMessages.length)lastChatMsgTime=chatMessages[chatMessages.length-1].time||0;
+    container.scrollTop=container.scrollHeight;
+  }).catch(function(e){container.innerHTML='<div class="chat-system-msg">Error al cargar</div>';debugLog('Error chat load: '+e.message,'err');});
+
+  if(chatListenerRef)database.ref('chat').off('child_added',chatListenerRef);
+  chatListenerRef=database.ref('chat').orderByChild('time').startAt(Date.now()).on('child_added',function(snap){
+    var msg=snap.val();if(!msg)return;
+    chatMessages.push(msg);renderChatMessage(msg);
+  });
+}
+
+function renderChatMessage(msg,scroll){
+  if(scroll===undefined)scroll=true;
+  var container=document.getElementById('chatMessages');
+  var div=document.createElement('div');
+  var isMine=msg.uid===playerUID;
+  var isAI=msg.uid==='ai';
+  div.className='chat-msg'+(isMine?' mine':isAI?' ai':' other');
+  div.innerHTML='<div class="chat-msg-header"><span class="chat-msg-name">'+(isAI?'<i class="fa-solid fa-robot"></i> ':'')+escapeHTML(msg.sender||'?')+'</span><span class="chat-msg-time">'+formatDate(msg.time)+'</span></div><div class="chat-msg-text">'+escapeHTML(msg.text||'')+'</div>';
+  container.appendChild(div);
+  if(scroll)container.scrollTop=container.scrollHeight;
+}
+
+function loadOnlineCount(){
+  if(!database||!firebaseConnected){document.getElementById('chatOnlineCount').textContent='--';return;}
+  database.ref('users').orderByChild('online').equalTo(true).once('value').then(function(snap){
+    var count=0;snap.forEach(function(){count++;});
+    onlineCount=count;
+    document.getElementById('chatOnlineCount').textContent=count+' online';
+  }).catch(function(){});
+}
+
+/* ================================================================
+   SISTEMA DE AMIGOS
+   ================================================================ */
+function openFriendsTab(){
+  showScreen('historyScreen');
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
+  document.querySelector('.tab-btn[data-tab="friends"]').classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove('active')});
+  document.getElementById('tabFriends').classList.add('active');
+  loadFriendsList();
+}
+
+function loadFriendsRanking(){loadFriendsList();}
+
+var searchDebounce=null;
+document.getElementById('friendSearchInput').addEventListener('input',function(){
+  clearTimeout(searchDebounce);
+  var query=this.value.trim().toUpperCase();
+  var results=document.getElementById('friendSearchResults');
+  if(query.length<2){results.innerHTML='';return;}
+  searchDebounce=setTimeout(function(){
+    if(!database||!firebaseConnected){results.innerHTML='';return;}
+    database.ref('users').orderByChild('name').startAt(query).endAt(query+'\uf8ff').limitToFirst(10).once('value').then(function(snap){
+      var html='';
+      snap.forEach(function(child){
+        var u=child.val();if(child.key===playerUID)return;
+        var isFriend=friendsList[child.key];
+        html+='<div class="friend-card"><div class="friend-avatar">'+escapeHTML((u.name||'?').charAt(0))+'</div><div class="friend-info"><div class="friend-name">'+escapeHTML(u.name||'?')+'</div><div class="friend-meta">'+(u.online?'<span style="color:var(--accent)">Online</span>':'Offline')+' | '+(u.bestScore||0)+' pts</div></div><div class="friend-actions">';
+        if(isFriend)html+='<button class="btn tiny pm-btn" onclick="openPM(\''+child.key+'\',\''+escapeHTML(u.name||'?')+'\')">PM</button>';
+        else html+='<button class="btn tiny pm-btn" onclick="sendFriendRequest(\''+child.key+'\')">Agregar</button>';
+        html+='</div></div>';
+      });
+      if(!html)html='<div class="no-friends">Sin resultados</div>';
+      results.innerHTML=html;
+    }).catch(function(){results.innerHTML='';});
+  },400);
 });
 
-/* Cerrar debug al hacer clic */
-document.getElementById('debugPanel').addEventListener('click', function() {
-  if (connectionDone) debugPanel.style.display = 'none';
+function sendFriendRequest(targetUID){
+  if(!database||!firebaseConnected||!currentUser)return;
+  database.ref('friendRequests/'+targetUID+'/'+playerUID).set({from:playerName,fromUID:playerUID,time:firebase.database.ServerValue.TIMESTAMP}).then(function(){
+    debugLog('Solicitud enviada','ok');
+    document.getElementById('friendSearchInput').value='';
+    document.getElementById('friendSearchResults').innerHTML='';
+  }).catch(function(e){debugLog('Error solicitud: '+e.message,'err');});
+}
+
+function loadFriendsList(){
+  if(!database||!firebaseConnected||(!currentUser&&!userChoseGuest)){
+    document.getElementById('friendsList').innerHTML='<div class="no-friends">Inicia sesion para ver amigos</div>';
+    document.getElementById('requestsList').innerHTML='';document.getElementById('requestsTitle').style.display='none';return;
+  }
+  if(playerUID.startsWith('guest_')){document.getElementById('friendsList').innerHTML='<div class="no-friends">Registrate para agregar amigos</div>';return;}
+  database.ref('friends/'+playerUID).once('value').then(function(snap){friendsList=snap.val()||{};renderFriendsList();}).catch(function(){});
+  database.ref('friendRequests/'+playerUID).once('value').then(function(snap){friendRequests=snap.val()||{};renderFriendRequests();}).catch(function(){});
+}
+
+function renderFriendsList(){
+  var container=document.getElementById('friendsList');
+  var keys=Object.keys(friendsList);
+  if(!keys.length){container.innerHTML='<div class="no-friends">Sin amigos aun. Busca jugadores arriba.</div>';return;}
+  var html='';
+  keys.forEach(function(uid){
+    var info=friendsList[uid];
+    html+='<div class="friend-card"><div class="friend-avatar">'+escapeHTML((info.name||'?').charAt(0))+'</div><div class="friend-info"><div class="friend-name">'+escapeHTML(info.name||'?')+'</div><div class="friend-meta">Amigo</div></div><div class="friend-actions"><button class="btn tiny pm-btn" onclick="openPM(\''+uid+'\',\''+escapeHTML(info.name||'?')+'\')">PM</button><button class="btn tiny danger" onclick="removeFriend(\''+uid+'\')">X</button></div></div>';
+  });
+  container.innerHTML=html;
+}
+
+function renderFriendRequests(){
+  var container=document.getElementById('requestsList');
+  var title=document.getElementById('requestsTitle');
+  var keys=Object.keys(friendRequests);
+  if(!keys.length){container.innerHTML='';title.style.display='none';return;}
+  title.style.display='';
+  var html='';
+  keys.forEach(function(uid){
+    var req=friendRequests[uid];
+    html+='<div class="friend-card"><div class="friend-avatar">'+escapeHTML((req.from||'?').charAt(0))+'</div><div class="friend-info"><div class="friend-name">'+escapeHTML(req.from||'?')+'</div><div class="friend-meta">Quiere ser tu amigo</div></div><div class="friend-actions"><button class="btn tiny pm-btn" onclick="acceptFriend(\''+uid+'\',\''+escapeHTML(req.from||'?')+'\')">OK</button><button class="btn tiny danger" onclick="rejectFriend(\''+uid+'\')">X</button></div></div>';
+  });
+  container.innerHTML=html;
+}
+
+function acceptFriend(uid,name){
+  if(!database)return;
+  var updates={};
+  updates['friends/'+playerUID+'/'+uid]={name:name,since:Date.now()};
+  updates['friends/'+uid+'/'+playerUID]={name:playerName,since:Date.now()};
+  updates['friendRequests/'+playerUID+'/'+uid]=null;
+  database.ref().update(updates).then(function(){
+    friendsList[uid]={name:name,since:Date.now()};delete friendRequests[uid];
+    renderFriendsList();renderFriendRequests();debugLog('Amigo aceptado: '+name,'ok');
+  }).catch(function(e){debugLog('Error aceptar: '+e.message,'err');});
+}
+
+function rejectFriend(uid){
+  if(!database)return;
+  database.ref('friendRequests/'+playerUID+'/'+uid).remove().then(function(){delete friendRequests[uid];renderFriendRequests();});
+}
+
+function removeFriend(uid){
+  if(!database)return;
+  var updates={};
+  updates['friends/'+playerUID+'/'+uid]=null;
+  updates['friends/'+uid+'/'+playerUID]=null;
+  database.ref().update(updates).then(function(){delete friendsList[uid];renderFriendsList();});
+}
+
+/* ================================================================
+   MENSAJES PRIVADOS
+   ================================================================ */
+function openPM(uid,name){
+  pmTargetUser={uid:uid,name:name};
+  document.getElementById('pmTitle').innerHTML='<i class="fa-solid fa-lock"></i> '+escapeHTML(name);
+  showScreen('pmScreen');loadPMMessages();
+}
+
+document.getElementById('btnPmBack').addEventListener('click',function(){showScreen('historyScreen');openFriendsTab();});
+document.getElementById('btnPmClose').addEventListener('click',function(){showScreen('startScreen');});
+document.getElementById('btnPmSend').addEventListener('click',sendPM);
+document.getElementById('pmInput').addEventListener('keydown',function(e){if(e.key==='Enter')sendPM();});
+
+function sendPM(){
+  var input=document.getElementById('pmInput');
+  var text=input.value.trim();
+  if(!text||!pmTargetUser||!database||!firebaseConnected)return;
+  input.value='';
+  var path='pms/'+[playerUID,pmTargetUser.uid].sort().join('_');
+  database.ref(path).push({text:text,from:playerUID,fromName:playerName,to:pmTargetUser.uid,time:firebase.database.ServerValue.TIMESTAMP}).catch(function(e){debugLog('Error PM: '+e.message,'err');});
+}
+
+function loadPMMessages(){
+  if(!pmTargetUser||!database||!firebaseConnected)return;
+  var container=document.getElementById('pmMessages');
+  container.innerHTML='<div class="chat-system-msg">Cargando mensajes...</div>';
+  var path='pms/'+[playerUID,pmTargetUser.uid].sort().join('_');
+  if(pmListenerRef)database.ref(path).off();
+  pmListenerRef=database.ref(path).orderByChild('time').limitToLast(50);
+  pmListenerRef.on('value',function(snap){
+    container.innerHTML='';var hasMsgs=false;
+    snap.forEach(function(child){
+      hasMsgs=true;var m=child.val();var isMine=m.from===playerUID;
+      var div=document.createElement('div');div.className='pm-msg'+(isMine?' mine':' other');
+      div.innerHTML='<div class="pm-msg-header"><span class="pm-msg-name">'+escapeHTML(m.fromName||'?')+'</span><span class="pm-msg-time">'+formatDate(m.time)+'</span></div><div class="pm-msg-text">'+escapeHTML(m.text)+'</div>';
+      container.appendChild(div);
+    });
+    if(!hasMsgs)container.innerHTML='<div class="chat-system-msg">Sin mensajes. Escribe algo!</div>';
+    container.scrollTop=container.scrollHeight;
+  });
+}
+
+/* ================================================================
+   BOTONES DEL HUD DURANTE EL JUEGO
+   ================================================================ */
+document.getElementById('hudFriendsBtn').addEventListener('click',function(){
+  if(gameState==='playing')gameState='paused';
+  openFriendsTab();
+});
+document.getElementById('hudChatBtn').addEventListener('click',function(){
+  if(gameState==='playing')gameState='paused';
+  openChat();
 });
 
-/* ==========================================
-   INICIO DEL JUEGO
-   ========================================== */
-updateHudPlayer();
-gameLoop();
+/* ================================================================
+   INICIALIZACION FINAL
+   ================================================================ */
+loadLocalHistory();
+showScreen('authScreen');
+
+debugLog('NEON DASH v12 completo cargado','info');
+debugLog('Esperando respuesta de Firebase...','info');
+
+/* Si no hay errores despues de 4 segundos, ocultar panel de debug */
+setTimeout(function(){if(!hasError&&debugPanel)debugPanel.style.display='none';},4000);
+
+/* Limpiar estado online al cerrar la pagina */
+window.addEventListener('beforeunload',function(){setOnlineStatus(false);});
 </script>
 </body>
 </html>
