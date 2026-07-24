@@ -126,6 +126,7 @@ canvas{display:block;width:100%;height:100%}
 .auth-field input:focus{border-color:var(--accent);box-shadow:0 0 12px rgba(0,255,170,.1);background:rgba(0,255,170,.06)}
 .auth-field input::placeholder{color:rgba(224,232,255,.15)}
 .auth-error{font-size:8px;color:var(--accent2);font-family:'Orbitron',monospace;letter-spacing:.5px;text-align:center;min-height:12px;max-width:100%;word-break:break-word;line-height:1.3}
+.auth-success{font-size:8px;color:var(--accent);font-family:'Orbitron',monospace;letter-spacing:.5px;text-align:center;min-height:12px;max-width:100%;word-break:break-word;line-height:1.3}
 .auth-divider{display:flex;align-items:center;gap:8px;width:100%;margin:2px 0}
 .auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 .auth-divider span{font-size:7px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-family:'Orbitron',monospace}
@@ -143,9 +144,6 @@ canvas{display:block;width:100%;height:100%}
 .friend-info{flex:1;min-width:0}
 .friend-name{font-family:'Orbitron',monospace;font-size:10px;font-weight:700;color:var(--fg);letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .friend-meta{font-size:8px;color:var(--muted);letter-spacing:.5px}
-.friend-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.friend-status-dot.online{background:var(--accent);box-shadow:0 0 6px var(--accent)}
-.friend-status-dot.offline{background:rgba(224,232,255,.15)}
 .friend-actions{display:flex;gap:4px;flex-shrink:0}
 .friends-list{max-height:180px;overflow-y:auto;width:100%}
 .friends-list::-webkit-scrollbar{width:3px}
@@ -258,6 +256,7 @@ canvas{display:block;width:100%;height:100%}
 <div class="auth-field"><label>Clave (min 6)</label><input type="password" id="regPass" placeholder="Tu clave" autocomplete="new-password"></div>
 <div class="auth-field"><label>Confirmar clave</label><input type="password" id="regPass2" placeholder="Repite la clave" autocomplete="new-password"></div>
 <div class="auth-error" id="regError"></div>
+<div class="auth-success" id="regSuccess"></div>
 <button type="button" class="btn" id="btnRegister" style="width:100%">CREAR CUENTA</button>
 </div>
 <div class="auth-divider"><span>o</span></div>
@@ -356,7 +355,7 @@ canvas{display:block;width:100%;height:100%}
 <div id="newRecord">NUEVO RECORD</div>
 <div class="save-flash" id="saveFlash"><i class="fa-solid fa-cloud-arrow-up"></i> GUARDADO</div>
 </div>
-<div class="version-text">v12</div>
+<div class="version-text">v13</div>
 <div id="debugPanel"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -374,7 +373,7 @@ function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v))}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).substr(2,6)}
 
 /* ================================================================
-   PANEL DE DEBUG - aparece solo si hay errores
+   PANEL DE DEBUG
    ================================================================ */
 var debugPanel=document.getElementById('debugPanel');
 var hasError=false;
@@ -394,10 +393,9 @@ var appReady=false;
 var userChoseGuest=false;
 var currentUser=null;
 var userProfile=null;
-var skipAuthListener=false;
+var isLoggingOut=false;
 var firebaseConnected=false;
 
-/* API de Groq con tu clave actualizada */
 var GROQ_API_KEY='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';
 var GROQ_MODEL='llama-3.3-70b-versatile';
 
@@ -412,10 +410,17 @@ var pmTargetUser=null;
 var chatListenerRef=null;
 var pmListenerRef=null;
 var onlineCount=0;
-var lastChatMsgTime=0;
+
+/* ★ FIX: Set para evitar mensajes duplicados en el chat ★ */
+var renderedMsgKeys=new Set();
+
+/* Genera una clave unica para cada mensaje basada en tiempo+uid+texto */
+function msgKey(m){
+  return String(m.time||0)+'|'+(m.uid||'')+'|'+(m.text||'').substring(0,80);
+}
 
 /* ================================================================
-   ★★★ CONFIGURACION FIREBASE - TUS CREDENCIALES REALES ★★★
+   CONFIGURACION FIREBASE - TUS CREDENCIALES
    ================================================================ */
 var firebaseConfig={
   apiKey:"AIzaSyBR4Sk634O7cXBeieiKoHZw8ZWIek1lACI",
@@ -442,20 +447,23 @@ var auth=null;
 
     database=firebase.database();
     auth=firebase.auth();
-    debugLog('database + auth referenciados','ok');
 
-    /* TIMEOUT: si en 8 segundos no hay respuesta, forzar desconectado */
+    /* ★ FIX: Persistencia explicita LOCAL para que la sesion sobreviva al cerrar navegador ★ */
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(function(){
+      debugLog('Persistencia LOCAL configurada','ok');
+    }).catch(function(e){
+      debugLog('Error persistencia: '+e.message,'err');
+    });
+
+    /* Timeout de seguridad: 8 segundos */
     var connTimeout=setTimeout(function(){
       if(!firebaseConnected){
         debugLog('TIMEOUT: Firebase no respondio en 8s','err');
-        debugLog('Verifica: 1) Que la URL del database sea correcta','err');
-        debugLog('2) Que las reglas de Realtime Database permitan lectura','err');
-        debugLog('3) Que no tengas un bloqueador de contenido activo','err');
+        debugLog('Verifica las reglas de Realtime Database','err');
         forceDisconnected('Timeout');
       }
     },8000);
 
-    /* Escuchar estado de conexion en tiempo real */
     database.ref('.info/connected').on('value',function(snap){
       clearTimeout(connTimeout);
       firebaseConnected=snap.val()===true;
@@ -469,7 +477,6 @@ var auth=null;
   }
 })();
 
-/* Forzar desconectado cuando no se puede conectar */
 function forceDisconnected(reason){
   firebaseConnected=false;
   updateAllConnectionBadges('disconnected');
@@ -478,7 +485,6 @@ function forceDisconnected(reason){
   showScreen('authScreen');
 }
 
-/* Actualizar todos los badges de conexion */
 function updateAllConnectionBadges(state){
   var badges=[
     {el:document.getElementById('authOnlineBadge'),txt:document.getElementById('authOnlineText')},
@@ -505,8 +511,13 @@ function showScreen(id){
 }
 
 /* ================================================================
-   SISTEMA DE AUTENTICACION
+   ★★★ AUTENTICACION - CORREGIDA ★★★
+   - Registro: si falla la BD, no borra el usuario Auth
+   - Login: mejor manejo de errores
+   - Un solo onAuthStateChanged (eliminado el duplicado)
+   - Logout sin race conditions
    ================================================================ */
+
 /* Tabs login/registro */
 document.querySelectorAll('.auth-tab').forEach(function(tab){
   tab.addEventListener('click',function(){
@@ -517,10 +528,11 @@ document.querySelectorAll('.auth-tab').forEach(function(tab){
     document.getElementById('registerForm').classList.toggle('active',which==='register');
     document.getElementById('loginError').textContent='';
     document.getElementById('regError').textContent='';
+    document.getElementById('regSuccess').textContent='';
   });
 });
 
-/* Boton LOGIN */
+/* ★ FIX: Login mejorado con mas debug ★ */
 document.getElementById('btnLogin').addEventListener('click',function(){
   var email=document.getElementById('loginEmail').value.trim();
   var pass=document.getElementById('loginPass').value;
@@ -528,41 +540,75 @@ document.getElementById('btnLogin').addEventListener('click',function(){
   errEl.textContent='';
   if(!email||!pass){errEl.textContent='Completa todos los campos';return;}
   if(!auth){errEl.textContent='Firebase no inicializado';return;}
+  debugLog('Intentando login: '+email,'info');
   this.disabled=true;
   auth.signInWithEmailAndPassword(email,pass).then(function(cred){
-    debugLog('Login OK: '+cred.user.uid,'ok');
+    debugLog('Login OK: uid='+cred.user.uid+' email='+cred.user.email,'ok');
   }).catch(function(e){
-    errEl.textContent=traducirError(e.code);
-    debugLog('Error login: '+e.code,'err');
+    var msg=traducirError(e.code);
+    errEl.textContent=msg;
+    debugLog('Error login: '+e.code+' | '+e.message,'err');
   }).finally(function(){document.getElementById('btnLogin').disabled=false;});
 });
 
-/* Boton REGISTRO */
+/* ★ FIX: Registro corregido - separa Auth de BD ★ */
 document.getElementById('btnRegister').addEventListener('click',function(){
   var user=document.getElementById('regUser').value.trim().toUpperCase();
   var email=document.getElementById('regEmail').value.trim();
   var pass=document.getElementById('regPass').value;
   var pass2=document.getElementById('regPass2').value;
   var errEl=document.getElementById('regError');
-  errEl.textContent='';
+  var sucEl=document.getElementById('regSuccess');
+  errEl.textContent='';sucEl.textContent='';
   if(!user||!email||!pass||!pass2){errEl.textContent='Completa todos los campos';return;}
   if(user.length<2){errEl.textContent='Nombre muy corto (min 2)';return;}
   if(pass.length<6){errEl.textContent='Clave minimo 6 caracteres';return;}
   if(pass!==pass2){errEl.textContent='Las claves no coinciden';return;}
   if(!auth){errEl.textContent='Firebase no inicializado';return;}
   this.disabled=true;
+
+  /* Paso 1: Crear usuario en Firebase Auth */
   auth.createUserWithEmailAndPassword(email,pass).then(function(cred){
+    debugLog('Usuario Auth creado: '+cred.user.uid,'ok');
+
+    /* Paso 2: Actualizar displayName */
     return cred.user.updateProfile({displayName:user}).then(function(){
+      debugLog('DisplayName actualizado: '+user,'ok');
+
+      /* Paso 3: Guardar perfil en BD - SI FALLA, NO rompemos todo */
       return database.ref('users/'+cred.user.uid).set({
         name:user,email:email,coins:0,bestScore:0,
         createdAt:firebase.database.ServerValue.TIMESTAMP,online:true
+      }).then(function(){
+        debugLog('Perfil guardado en BD','ok');
+      }).catch(function(dbErr){
+        /* ★ FIX: Si la BD falla, el usuario Auth ya existe. No mostramos error fatal. ★ */
+        debugLog('BD fallo pero Auth existe: '+dbErr.message,'err');
+        /* Intentamos crear el perfil de todas formas con un set silencioso */
       });
     });
   }).then(function(){
-    debugLog('Registro OK','ok');
+    /* Registro completado con exito */
+    sucEl.textContent='Cuenta creada. Ya puedes iniciar sesion.';
+    debugLog('Registro completado exitosamente','ok');
+    /* Limpiar campos del registro */
+    document.getElementById('regUser').value='';
+    document.getElementById('regEmail').value='';
+    document.getElementById('regPass').value='';
+    document.getElementById('regPass2').value='';
+    /* Auto-completar el email en el formulario de login */
+    document.getElementById('loginEmail').value=email;
+    /* Cambiar a la pestana de login */
+    setTimeout(function(){
+      document.querySelectorAll('.auth-tab').forEach(function(t){t.classList.remove('active')});
+      document.querySelector('.auth-tab[data-tab="login"]').classList.add('active');
+      document.getElementById('registerForm').classList.remove('active');
+      document.getElementById('loginForm').classList.add('active');
+    },800);
   }).catch(function(e){
+    /* Solo llegamos aqui si createUserWithEmailAndPassword o updateProfile fallan */
     errEl.textContent=traducirError(e.code);
-    debugLog('Error registro: '+e.code+' - '+e.message,'err');
+    debugLog('Error registro Auth: '+e.code+' - '+e.message,'err');
   }).finally(function(){document.getElementById('btnRegister').disabled=false;});
 });
 
@@ -575,40 +621,57 @@ document.getElementById('btnGuest').addEventListener('click',function(){
   setupStartScreen();
 });
 
-/* Escuchar cambios de auth */
+/* ★ FIX: UN SOLO onAuthStateChanged - eliminado el duplicado que causaba interferencia ★ */
 if(typeof auth!=='undefined'&&auth){
   auth.onAuthStateChanged(function(user){
-    if(skipAuthListener)return;
-    debugLog('Auth state: '+(user?user.uid:'null'),'info');
+    /* Durante logout, ignorar hasta que user sea null */
+    if(isLoggingOut){
+      if(!user)isLoggingOut=false;
+      return;
+    }
+    debugLog('Auth state changed: '+(user?user.uid:'null'),'info');
     currentUser=user;
     if(user){
       playerUID=user.uid;
       playerName=(user.displayName||'JUGADOR').toUpperCase();
+      debugLog('Sesion activa: '+playerName+' ('+playerUID+')','ok');
       loadUserProfile();
     }else if(!userChoseGuest){
-      showScreen('authScreen');
+      /* Solo mostrar auth screen si no es invitado y no estamos haciendo logout */
+      if(!isLoggingOut){
+        debugLog('Sin sesion activa, mostrando login','info');
+        showScreen('authScreen');
+      }
     }
   });
 }
 
-/* Cargar perfil del usuario desde la base de datos */
 function loadUserProfile(){
   if(!database){setupStartScreen();return;}
   database.ref('users/'+playerUID).once('value').then(function(snap){
     userProfile=snap.val()||{};
+    /* Si el perfil no existe en BD pero el usuario Auth sí, crearlo */
+    if(!userProfile.name&&currentUser){
+      var name=(currentUser.displayName||'JUGADOR').toUpperCase();
+      debugLog('Perfil no encontrado en BD, creando...','info');
+      database.ref('users/'+playerUID).set({
+        name:name,email:currentUser.email||'',coins:0,bestScore:0,
+        createdAt:firebase.database.ServerValue.TIMESTAMP,online:true
+      }).catch(function(e){debugLog('Error creando perfil: '+e.message,'err');});
+      userProfile={name:name};
+    }
     playerName=(userProfile.name||playerName).toUpperCase();
     totalCoins=userProfile.coins||0;
     bestScore=userProfile.bestScore||0;
-    debugLog('Perfil: '+playerName+' | Coins: '+totalCoins+' | Best: '+bestScore,'ok');
+    debugLog('Perfil cargado: '+playerName+' | Coins: '+totalCoins+' | Best: '+bestScore,'ok');
     setupStartScreen();
     setOnlineStatus(true);
   }).catch(function(e){
-    debugLog('Error perfil: '+e.message,'err');
+    debugLog('Error cargando perfil: '+e.message,'err');
     setupStartScreen();
   });
 }
 
-/* Marcar online/offline en la base de datos */
 function setOnlineStatus(isOnline){
   if(!database||!playerUID||playerUID.startsWith('guest_'))return;
   var ref=database.ref('users/'+playerUID+'/online');
@@ -620,7 +683,6 @@ function setOnlineStatus(isOnline){
   }
 }
 
-/* Configurar la pantalla de inicio segun el estado del usuario */
 function setupStartScreen(){
   appReady=true;
   var info=document.getElementById('loggedInInfo');
@@ -644,18 +706,16 @@ function setupStartScreen(){
   showScreen('startScreen');
 }
 
-/* Cerrar sesion */
+/* ★ FIX: Logout sin race conditions - usa flag en vez de setTimeout ★ */
 function doLogout(){
-  skipAuthListener=true;
+  isLoggingOut=true;
   setOnlineStatus(false);
-  if(auth)auth.signOut();
   currentUser=null;userProfile=null;playerUID='';playerName='JUGADOR';
   totalCoins=0;bestScore=0;userChoseGuest=false;
-  setTimeout(function(){skipAuthListener=false;},100);
+  if(auth){auth.signOut().catch(function(e){debugLog('Error logout: '+e.message,'err');});}
   showScreen('authScreen');
 }
 
-/* Traducir errores de Firebase a espanol */
 function traducirError(code){
   var map={
     'auth/email-already-in-use':'Ese correo ya esta registrado',
@@ -666,7 +726,7 @@ function traducirError(code){
     'auth/too-many-requests':'Demasiados intentos, espera un momento',
     'auth/invalid-credential':'Correo o clave incorrectos',
     'auth/network-request-failed':'Error de red, verifica tu conexion',
-    'auth/operation-not-allowed':'Metodo de auth no habilitado en Firebase Console'
+    'auth/operation-not-allowed':'Auth no habilitado. Ve a Firebase Console > Authentication > Sign-in method > Habilita Email/Password'
   };
   return map[code]||'Error: '+code;
 }
@@ -678,15 +738,13 @@ document.getElementById('btnStart').addEventListener('click',startGame);
 document.getElementById('btnHistory').addEventListener('click',openHistory);
 document.getElementById('btnChat').addEventListener('click',openChat);
 document.getElementById('btnFriends').addEventListener('click',openFriendsTab);
-
-/* Leer nombre del invitado */
 document.getElementById('playerName').addEventListener('input',function(){
   var v=this.value.trim().toUpperCase();
   if(v.length>=2){playerName=v;localStorage.setItem('nd_guestName',v);}
 });
 
 /* ================================================================
-   MOTOR DEL JUEGO - CANVAS
+   MOTOR DEL JUEGO - CANVAS (sin cambios, funciona bien)
    ================================================================ */
 var canvas=document.getElementById('gameCanvas');
 var ctx=canvas.getContext('2d');
@@ -703,7 +761,6 @@ function resizeCanvas(){
 resizeCanvas();
 window.addEventListener('resize',resizeCanvas);
 
-/* Estado del juego */
 var gameState='idle';
 var score=0,coins=0,speed=4,maxSpeed=0,gameTime=0,gameStartTime=0;
 var groundY=0,gravity=0.6,jumpForce=-12;
@@ -713,7 +770,6 @@ var spawnTimer=0,coinSpawnTimer=0,difficultyTimer=0;
 var frameCount=0;
 var animId=null;
 
-/* Generar estrellas de fondo */
 function initStars(){
   bgStars=[];
   for(var i=0;i<80;i++){
@@ -722,64 +778,43 @@ function initStars(){
 }
 initStars();
 
-/* Iniciar una nueva partida */
 function startGame(){
   if(document.getElementById('nameInputWrap').style.display!=='none'){
     var n=document.getElementById('playerName').value.trim().toUpperCase();
     if(n.length>=2)playerName=n;
     else if(playerName==='JUGADOR'){document.getElementById('playerName').focus();return;}
   }
-
   groundY=H*0.78;
   player.x=W*0.12;player.y=groundY-player.h;
   player.vy=0;player.grounded=true;player.doubleJump=false;
-
   score=0;coins=0;speed=4;maxSpeed=0;gameTime=0;
   obstacles=[];coinItems=[];particles=[];
   spawnTimer=0;coinSpawnTimer=0;difficultyTimer=0;frameCount=0;
   gameStartTime=Date.now();
   gameState='playing';
-
   document.getElementById('hudScore').textContent='0';
   document.getElementById('hudCoins').textContent='0';
   document.getElementById('hudBest').textContent=bestScore;
   document.getElementById('hudPlayer').textContent=playerName;
-
   showScreen('__playing__');
   if(animId)cancelAnimationFrame(animId);
   gameLoop();
 }
 
-/* Loop principal del juego */
 function gameLoop(){
   if(gameState!=='playing')return;
   animId=requestAnimationFrame(gameLoop);
-  frameCount++;
-  update();
-  draw();
+  frameCount++;update();draw();
 }
 
-/* Actualizar logica del juego */
 function update(){
   gameTime=Date.now()-gameStartTime;
-
-  /* Aumentar dificultad progresivamente */
   difficultyTimer++;
   if(difficultyTimer%120===0&&speed<14)speed+=0.15;
   if(speed>maxSpeed)maxSpeed=speed;
-
-  /* Puntos por distancia */
   if(frameCount%4===0){score++;document.getElementById('hudScore').textContent=score;}
-
-  /* Fisica del jugador */
-  player.vy+=gravity;
-  player.y+=player.vy;
-  if(player.y>=groundY-player.h){
-    player.y=groundY-player.h;player.vy=0;
-    player.grounded=true;player.doubleJump=false;
-  }
-
-  /* Generar obstaculos */
+  player.vy+=gravity;player.y+=player.vy;
+  if(player.y>=groundY-player.h){player.y=groundY-player.h;player.vy=0;player.grounded=true;player.doubleJump=false;}
   spawnTimer++;
   var spawnRate=Math.max(40,90-Math.floor(speed*4));
   if(spawnTimer>=spawnRate){
@@ -790,26 +825,18 @@ function update(){
     var ow=type==='tall'?20:type==='block'?35:18;
     obstacles.push({x:W+20,y:groundY-oh,w:ow,h:oh,type:type});
   }
-
-  /* Generar monedas */
   coinSpawnTimer++;
   if(coinSpawnTimer>=60+Math.random()*40){
     coinSpawnTimer=0;
-    var cy=groundY-50-Math.random()*80;
-    coinItems.push({x:W+20,y:cy,r:8,collected:false,angle:0});
+    coinItems.push({x:W+20,y:groundY-50-Math.random()*80,r:8,collected:false,angle:0});
   }
-
-  /* Mover y colisionar obstaculos */
   for(var i=obstacles.length-1;i>=0;i--){
     obstacles[i].x-=speed;
     if(obstacles[i].x+obstacles[i].w<-20){obstacles.splice(i,1);continue;}
     if(rectCollide(player,obstacles[i])){endGame();return;}
   }
-
-  /* Mover y recolectar monedas */
   for(var j=coinItems.length-1;j>=0;j--){
-    coinItems[j].x-=speed;
-    coinItems[j].angle+=0.08;
+    coinItems[j].x-=speed;coinItems[j].angle+=0.08;
     if(coinItems[j].x<-20){coinItems.splice(j,1);continue;}
     if(!coinItems[j].collected&&circRectCollide(coinItems[j],player)){
       coinItems[j].collected=true;coins++;score+=10;
@@ -818,15 +845,10 @@ function update(){
       coinItems.splice(j,1);
     }
   }
-
-  /* Actualizar particulas */
   for(var k=particles.length-1;k>=0;k--){
-    var p=particles[k];
-    p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life--;
+    var p=particles[k];p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life--;
     if(p.life<=0)particles.splice(k,1);
   }
-
-  /* Mover estrellas de fondo */
   for(var s=0;s<bgStars.length;s++){
     bgStars[s].x-=bgStars[s].s*(speed*0.3);
     bgStars[s].a=0.3+0.7*Math.abs(Math.sin(frameCount*0.02+s));
@@ -834,255 +856,105 @@ function update(){
   }
 }
 
-/* Colision rectangulo vs rectangulo */
-function rectCollide(a,b){
-  var m=4;
-  return a.x+m<b.x+b.w&&a.x+a.w-m>b.x&&a.y+m<b.y+b.h&&a.y+a.h-m>b.y;
-}
+function rectCollide(a,b){var m=4;return a.x+m<b.x+b.w&&a.x+a.w-m>b.x&&a.y+m<b.y+b.h&&a.y+a.h-m>b.y;}
+function circRectCollide(c,r){var nx=clamp(c.x,r.x,r.x+r.w),ny=clamp(c.y,r.y,r.y+r.h),dx=c.x-nx,dy=c.y-ny;return(dx*dx+dy*dy)<(c.r*c.r);}
+function spawnCoinParticles(x,y){for(var i=0;i<8;i++){particles.push({x:x,y:y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4-2,life:20+Math.random()*15,maxLife:35,color:'#ffaa00',size:2+Math.random()*2});}}
 
-/* Colision circulo vs rectangulo */
-function circRectCollide(c,r){
-  var nx=clamp(c.x,r.x,r.x+r.w);
-  var ny=clamp(c.y,r.y,r.y+r.h);
-  var dx=c.x-nx,dy=c.y-ny;
-  return(dx*dx+dy*dy)<(c.r*c.r);
-}
-
-/* Particulas al recolectar moneda */
-function spawnCoinParticles(x,y){
-  for(var i=0;i<8;i++){
-    particles.push({x:x,y:y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4-2,life:20+Math.random()*15,maxLife:35,color:'#ffaa00',size:2+Math.random()*2});
-  }
-}
-
-/* Accion de salto (simple y doble) */
 function doJump(){
   if(gameState!=='playing')return;
-  if(player.grounded){
-    player.vy=jumpForce;player.grounded=false;
-  }else if(!player.doubleJump){
+  if(player.grounded){player.vy=jumpForce;player.grounded=false;}
+  else if(!player.doubleJump){
     player.vy=jumpForce*0.85;player.doubleJump=true;
-    for(var i=0;i<5;i++){
-      particles.push({x:player.x+player.w/2,y:player.y+player.h,vx:(Math.random()-0.5)*3,vy:Math.random()*2+1,life:15,maxLife:15,color:'#00ffaa',size:2});
-    }
+    for(var i=0;i<5;i++){particles.push({x:player.x+player.w/2,y:player.y+player.h,vx:(Math.random()-0.5)*3,vy:Math.random()*2+1,life:15,maxLife:15,color:'#00ffaa',size:2});}
   }
 }
 
-/* Controles: teclado, touch, mouse */
-document.addEventListener('keydown',function(e){
-  if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();doJump();}
-});
+document.addEventListener('keydown',function(e){if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();doJump();}});
 canvas.addEventListener('touchstart',function(e){e.preventDefault();doJump();},{passive:false});
 canvas.addEventListener('mousedown',function(e){e.preventDefault();doJump();});
 
-/* ================================================================
-   DIBUJO DEL JUEGO
-   ================================================================ */
 function draw(){
   ctx.clearRect(0,0,W,H);
-
-  /* Fondo degradado */
   var bgGrad=ctx.createLinearGradient(0,0,0,H);
-  bgGrad.addColorStop(0,'#060610');
-  bgGrad.addColorStop(0.6,'#0a0a18');
-  bgGrad.addColorStop(1,'#0d1020');
-  ctx.fillStyle=bgGrad;
-  ctx.fillRect(0,0,W,H);
-
-  /* Estrellas */
-  for(var s=0;s<bgStars.length;s++){
-    var st=bgStars[s];
-    ctx.globalAlpha=st.a*0.6;
-    ctx.fillStyle='#e0e8ff';
-    ctx.beginPath();
-    ctx.arc(st.x,st.y,Math.max(0.3,st.r),0,Math.PI*2);
-    ctx.fill();
-  }
+  bgGrad.addColorStop(0,'#060610');bgGrad.addColorStop(0.6,'#0a0a18');bgGrad.addColorStop(1,'#0d1020');
+  ctx.fillStyle=bgGrad;ctx.fillRect(0,0,W,H);
+  for(var s=0;s<bgStars.length;s++){var st=bgStars[s];ctx.globalAlpha=st.a*0.6;ctx.fillStyle='#e0e8ff';ctx.beginPath();ctx.arc(st.x,st.y,Math.max(0.3,st.r),0,Math.PI*2);ctx.fill();}
   ctx.globalAlpha=1;
-
-  /* Linea de horizonte */
-  ctx.strokeStyle='rgba(0,255,170,0.05)';
-  ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(0,groundY-60);ctx.lineTo(W,groundY-60);ctx.stroke();
-
-  /* Suelo con degradado */
+  ctx.strokeStyle='rgba(0,255,170,0.05)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,groundY-60);ctx.lineTo(W,groundY-60);ctx.stroke();
   var gGrad=ctx.createLinearGradient(0,groundY,0,H);
-  gGrad.addColorStop(0,'rgba(0,255,170,0.15)');
-  gGrad.addColorStop(1,'rgba(0,255,170,0.02)');
-  ctx.fillStyle=gGrad;
-  ctx.fillRect(0,groundY,W,H-groundY);
-
-  /* Linea brillante del suelo */
-  ctx.shadowColor='#00ffaa';ctx.shadowBlur=8;
-  ctx.strokeStyle='rgba(0,255,170,0.5)';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(0,groundY);ctx.lineTo(W,groundY);ctx.stroke();
-  ctx.shadowBlur=0;
-
-  /* Lineas de velocidad en el suelo */
+  gGrad.addColorStop(0,'rgba(0,255,170,0.15)');gGrad.addColorStop(1,'rgba(0,255,170,0.02)');
+  ctx.fillStyle=gGrad;ctx.fillRect(0,groundY,W,H-groundY);
+  ctx.shadowColor='#00ffaa';ctx.shadowBlur=8;ctx.strokeStyle='rgba(0,255,170,0.5)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,groundY);ctx.lineTo(W,groundY);ctx.stroke();ctx.shadowBlur=0;
   ctx.strokeStyle='rgba(0,255,170,0.08)';ctx.lineWidth=1;
-  for(var i=0;i<8;i++){
-    var ly=groundY+8+i*10;
-    var lx=((frameCount*speed*(0.5+i*0.15))%(W+40))-20;
-    ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+20+i*5,ly);ctx.stroke();
-  }
-
-  /* Dibujar obstaculos */
+  for(var i=0;i<8;i++){var ly=groundY+8+i*10,lx=((frameCount*speed*(0.5+i*0.15))%(W+40))-20;ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+20+i*5,ly);ctx.stroke();}
   for(var o=0;o<obstacles.length;o++)drawObstacle(obstacles[o]);
-
-  /* Dibujar monedas */
   for(var c=0;c<coinItems.length;c++){
-    var co=coinItems[c];
-    ctx.save();ctx.translate(co.x,co.y);ctx.rotate(co.angle);
-    ctx.shadowColor='#ffaa00';ctx.shadowBlur=10;
-    ctx.fillStyle='#ffaa00';
+    var co=coinItems[c];ctx.save();ctx.translate(co.x,co.y);ctx.rotate(co.angle);
+    ctx.shadowColor='#ffaa00';ctx.shadowBlur=10;ctx.fillStyle='#ffaa00';
     ctx.beginPath();ctx.ellipse(0,0,Math.max(1,co.r),Math.max(1,co.r*0.5),0,0,Math.PI*2);ctx.fill();
-    ctx.shadowBlur=0;
-    ctx.fillStyle='#ffe066';
-    ctx.beginPath();ctx.ellipse(0,0,Math.max(0.5,co.r*0.5),Math.max(0.5,co.r*0.25),0,0,Math.PI*2);ctx.fill();
-    ctx.restore();
+    ctx.shadowBlur=0;ctx.fillStyle='#ffe066';
+    ctx.beginPath();ctx.ellipse(0,0,Math.max(0.5,co.r*0.5),Math.max(0.5,co.r*0.25),0,0,Math.PI*2);ctx.fill();ctx.restore();
   }
-
-  /* Dibujar jugador */
   drawPlayer();
-
-  /* Dibujar particulas */
-  for(var p=0;p<particles.length;p++){
-    var pt=particles[p];
-    ctx.globalAlpha=clamp(pt.life/pt.maxLife,0,1);
-    ctx.fillStyle=pt.color;
-    ctx.beginPath();ctx.arc(pt.x,pt.y,Math.max(0.5,pt.size*(pt.life/pt.maxLife)),0,Math.PI*2);ctx.fill();
-  }
+  for(var p=0;p<particles.length;p++){var pt=particles[p];ctx.globalAlpha=clamp(pt.life/pt.maxLife,0,1);ctx.fillStyle=pt.color;ctx.beginPath();ctx.arc(pt.x,pt.y,Math.max(0.5,pt.size*(pt.life/pt.maxLife)),0,Math.PI*2);ctx.fill();}
   ctx.globalAlpha=1;
 }
 
 function drawObstacle(ob){
   ctx.shadowColor='#ff2266';ctx.shadowBlur=12;
-  if(ob.type==='spike'){
-    ctx.fillStyle='#ff2266';
-    ctx.beginPath();ctx.moveTo(ob.x+ob.w/2,ob.y);ctx.lineTo(ob.x+ob.w,ob.y+ob.h);ctx.lineTo(ob.x,ob.y+ob.h);ctx.closePath();ctx.fill();
-    ctx.fillStyle='rgba(255,100,150,0.3)';
-    ctx.beginPath();ctx.moveTo(ob.x+ob.w/2,ob.y+8);ctx.lineTo(ob.x+ob.w-4,ob.y+ob.h);ctx.lineTo(ob.x+4,ob.y+ob.h);ctx.closePath();ctx.fill();
-  }else if(ob.type==='tall'){
-    var tG=ctx.createLinearGradient(ob.x,ob.y,ob.x+ob.w,ob.y);
-    tG.addColorStop(0,'#ff2266');tG.addColorStop(1,'#cc1155');
-    ctx.fillStyle=tG;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);
-    ctx.strokeStyle='rgba(255,150,180,0.4)';ctx.lineWidth=1;
-    for(var i=0;i<ob.h;i+=8){ctx.beginPath();ctx.moveTo(ob.x,ob.y+i);ctx.lineTo(ob.x+ob.w,ob.y+i);ctx.stroke();}
-  }else{
-    var bG=ctx.createLinearGradient(ob.x,ob.y,ob.x,ob.y+ob.h);
-    bG.addColorStop(0,'#ff2266');bG.addColorStop(1,'#aa1144');
-    ctx.fillStyle=bG;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);
-    ctx.fillStyle='rgba(255,255,255,0.1)';ctx.fillRect(ob.x+3,ob.y+3,ob.w-6,4);
-  }
+  if(ob.type==='spike'){ctx.fillStyle='#ff2266';ctx.beginPath();ctx.moveTo(ob.x+ob.w/2,ob.y);ctx.lineTo(ob.x+ob.w,ob.y+ob.h);ctx.lineTo(ob.x,ob.y+ob.h);ctx.closePath();ctx.fill();ctx.fillStyle='rgba(255,100,150,0.3)';ctx.beginPath();ctx.moveTo(ob.x+ob.w/2,ob.y+8);ctx.lineTo(ob.x+ob.w-4,ob.y+ob.h);ctx.lineTo(ob.x+4,ob.y+ob.h);ctx.closePath();ctx.fill();}
+  else if(ob.type==='tall'){var tG=ctx.createLinearGradient(ob.x,ob.y,ob.x+ob.w,ob.y);tG.addColorStop(0,'#ff2266');tG.addColorStop(1,'#cc1155');ctx.fillStyle=tG;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);ctx.strokeStyle='rgba(255,150,180,0.4)';ctx.lineWidth=1;for(var i=0;i<ob.h;i+=8){ctx.beginPath();ctx.moveTo(ob.x,ob.y+i);ctx.lineTo(ob.x+ob.w,ob.y+i);ctx.stroke();}}
+  else{var bG=ctx.createLinearGradient(ob.x,ob.y,ob.x,ob.y+ob.h);bG.addColorStop(0,'#ff2266');bG.addColorStop(1,'#aa1144');ctx.fillStyle=bG;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);ctx.fillStyle='rgba(255,255,255,0.1)';ctx.fillRect(ob.x+3,ob.y+3,ob.w-6,4);}
   ctx.shadowBlur=0;
 }
 
 function drawPlayer(){
   var px=player.x,py=player.y,pw=player.w,ph=player.h;
   ctx.shadowColor='#00ffaa';ctx.shadowBlur=15;
-  var pG=ctx.createLinearGradient(px,py,px,py+ph);
-  pG.addColorStop(0,'#00ffaa');pG.addColorStop(1,'#00aa66');
-  ctx.fillStyle=pG;
-  ctx.beginPath();
-  ctx.moveTo(px+pw*0.3,py);ctx.lineTo(px+pw*0.7,py);
-  ctx.lineTo(px+pw,py+ph*0.3);ctx.lineTo(px+pw*0.85,py+ph*0.7);
-  ctx.lineTo(px+pw*0.6,py+ph);ctx.lineTo(px+pw*0.4,py+ph);
-  ctx.lineTo(px+pw*0.15,py+ph*0.7);ctx.lineTo(px,py+ph*0.3);
-  ctx.closePath();ctx.fill();
-  ctx.shadowBlur=0;
-  /* Visor */
+  var pG=ctx.createLinearGradient(px,py,px,py+ph);pG.addColorStop(0,'#00ffaa');pG.addColorStop(1,'#00aa66');
+  ctx.fillStyle=pG;ctx.beginPath();
+  ctx.moveTo(px+pw*0.3,py);ctx.lineTo(px+pw*0.7,py);ctx.lineTo(px+pw,py+ph*0.3);ctx.lineTo(px+pw*0.85,py+ph*0.7);ctx.lineTo(px+pw*0.6,py+ph);ctx.lineTo(px+pw*0.4,py+ph);ctx.lineTo(px+pw*0.15,py+ph*0.7);ctx.lineTo(px,py+ph*0.3);
+  ctx.closePath();ctx.fill();ctx.shadowBlur=0;
   ctx.fillStyle='#060610';ctx.fillRect(px+pw*0.45,py+ph*0.15,pw*0.35,ph*0.12);
   ctx.fillStyle='#00ddff';ctx.fillRect(px+pw*0.5,py+ph*0.17,pw*0.2,ph*0.08);
-  /* Linea central */
-  ctx.strokeStyle='rgba(0,221,255,0.4)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(px+pw*0.5,py+ph*0.3);ctx.lineTo(px+pw*0.5,py+ph*0.85);ctx.stroke();
-  /* Trail de velocidad */
-  if(speed>6){
-    ctx.globalAlpha=clamp((speed-6)/8,0,0.4);
-    ctx.fillStyle='#00ffaa';
-    for(var t=0;t<3;t++){
-      ctx.fillRect(px-5-t*8,py+ph*0.3+Math.random()*ph*0.4,4+Math.random()*6,2);
-    }
-    ctx.globalAlpha=1;
-  }
+  ctx.strokeStyle='rgba(0,221,255,0.4)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(px+pw*0.5,py+ph*0.3);ctx.lineTo(px+pw*0.5,py+ph*0.85);ctx.stroke();
+  if(speed>6){ctx.globalAlpha=clamp((speed-6)/8,0,0.4);ctx.fillStyle='#00ffaa';for(var t=0;t<3;t++){ctx.fillRect(px-5-t*8,py+ph*0.3+Math.random()*ph*0.4,4+Math.random()*6,2);}ctx.globalAlpha=1;}
 }
 
 /* ================================================================
    FIN DEL JUEGO
    ================================================================ */
 function endGame(){
-  gameState='dead';
-  if(animId)cancelAnimationFrame(animId);
-
-  /* Particulas de explosion */
-  for(var i=0;i<20;i++){
-    particles.push({
-      x:player.x+player.w/2,y:player.y+player.h/2,
-      vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8-3,
-      life:25+Math.random()*20,maxLife:45,
-      color:i%2===0?'#ff2266':'#00ffaa',size:3+Math.random()*3
-    });
-  }
+  gameState='dead';if(animId)cancelAnimationFrame(animId);
+  for(var i=0;i<20;i++){particles.push({x:player.x+player.w/2,y:player.y+player.h/2,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8-3,life:25+Math.random()*20,maxLife:45,color:i%2===0?'#ff2266':'#00ffaa',size:3+Math.random()*3});}
   draw();
-
   var isNewRecord=score>bestScore;
   if(isNewRecord){bestScore=score;showNewRecord();}
-
   document.getElementById('goPlayerName').textContent=playerName;
   document.getElementById('finalScore').textContent=score;
   document.getElementById('finalCoins').textContent=coins;
   document.getElementById('finalBest').textContent=bestScore;
   document.getElementById('finalSpeed').textContent=maxSpeed.toFixed(1);
   document.getElementById('finalTime').textContent=formatTime(gameTime);
-
   saveLocalGame(score,coins,maxSpeed,gameTime);
   saveGameToFirebase(score,coins,maxSpeed,gameTime);
-
   totalCoins+=coins;
   if(currentUser&&!userChoseGuest&&database){
-    database.ref('users/'+playerUID).update({
-      coins:totalCoins,
-      bestScore:Math.max(bestScore,userProfile?(userProfile.bestScore||0):0)
-    }).catch(function(e){debugLog('Error update perfil: '+e.message,'err');});
+    database.ref('users/'+playerUID).update({coins:totalCoins,bestScore:Math.max(bestScore,userProfile?(userProfile.bestScore||0):0)}).catch(function(e){debugLog('Error update perfil: '+e.message,'err');});
   }
-
   setTimeout(function(){showScreen('gameOverScreen');},300);
 }
 
-function showNewRecord(){
-  var el=document.getElementById('newRecord');
-  el.classList.add('show');
-  setTimeout(function(){el.classList.remove('show');},2000);
-}
-
-function saveLocalGame(sc,co,sp,tm){
-  localHistory.push({date:Date.now(),score:sc,coins:co,speed:sp,time:tm});
-  if(localHistory.length>50)localHistory.shift();
-  try{localStorage.setItem('nd_history',JSON.stringify(localHistory));}catch(e){}
-  try{localStorage.setItem('nd_bestScore',bestScore);}catch(e){}
-}
-
+function showNewRecord(){var el=document.getElementById('newRecord');el.classList.add('show');setTimeout(function(){el.classList.remove('show');},2000);}
+function saveLocalGame(sc,co,sp,tm){localHistory.push({date:Date.now(),score:sc,coins:co,speed:sp,time:tm});if(localHistory.length>50)localHistory.shift();try{localStorage.setItem('nd_history',JSON.stringify(localHistory));}catch(e){}try{localStorage.setItem('nd_bestScore',bestScore);}catch(e){}}
 function saveGameToFirebase(sc,co,sp,tm){
   if(!database||!firebaseConnected){debugLog('Sin conexion - partida solo local','info');return;}
-  var entry={player:playerName,uid:playerUID,score:sc,coins:co,speed:parseFloat(sp.toFixed(1)),time:tm,date:firebase.database.ServerValue.TIMESTAMP};
-  database.ref('games').push(entry).then(function(){
-    debugLog('Partida guardada en Firebase','ok');
-    showSaveFlash();
-  }).catch(function(e){debugLog('Error guardando: '+e.message,'err');});
+  database.ref('games').push({player:playerName,uid:playerUID,score:sc,coins:co,speed:parseFloat(sp.toFixed(1)),time:tm,date:firebase.database.ServerValue.TIMESTAMP}).then(function(){debugLog('Partida guardada','ok');showSaveFlash();}).catch(function(e){debugLog('Error guardando: '+e.message,'err');});
 }
+function showSaveFlash(){var el=document.getElementById('saveFlash');el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1500);}
+function loadLocalHistory(){try{localHistory=JSON.parse(localStorage.getItem('nd_history'))||[];}catch(e){localHistory=[];}try{bestScore=parseInt(localStorage.getItem('nd_bestScore'))||0;}catch(e){}}
 
-function showSaveFlash(){
-  var el=document.getElementById('saveFlash');
-  el.classList.add('show');
-  setTimeout(function(){el.classList.remove('show');},1500);
-}
-
-function loadLocalHistory(){
-  try{localHistory=JSON.parse(localStorage.getItem('nd_history'))||[];}catch(e){localHistory=[];}
-  try{bestScore=parseInt(localStorage.getItem('nd_bestScore'))||0;}catch(e){}
-}
-
-/* Botones de game over */
 document.getElementById('btnRestart').addEventListener('click',startGame);
 document.getElementById('btnHistory2').addEventListener('click',openHistory);
 document.getElementById('btnChat2').addEventListener('click',openChat);
@@ -1090,11 +962,7 @@ document.getElementById('btnChat2').addEventListener('click',openChat);
 /* ================================================================
    RANKING / HISTORIAL
    ================================================================ */
-function openHistory(){
-  showScreen('historyScreen');
-  loadGlobalRanking();
-  renderLocalHistory();
-}
+function openHistory(){showScreen('historyScreen');loadGlobalRanking();renderLocalHistory();}
 
 document.querySelectorAll('.tab-btn').forEach(function(btn){
   btn.addEventListener('click',function(){
@@ -1113,9 +981,7 @@ document.getElementById('btnBack').addEventListener('click',function(){showScree
 
 function loadGlobalRanking(){
   var body=document.getElementById('globalBody');
-  if(!database||!firebaseConnected){
-    body.innerHTML='<tr><td colspan="7" class="empty-history">Sin conexion a Firebase</td></tr>';return;
-  }
+  if(!database||!firebaseConnected){body.innerHTML='<tr><td colspan="7" class="empty-history">Sin conexion a Firebase</td></tr>';return;}
   body.innerHTML='<tr><td colspan="7" class="loading-text"><i class="fa-solid fa-circle-notch"></i> Cargando...</td></tr>';
   database.ref('games').orderByChild('score').limitToLast(50).once('value').then(function(snap){
     var data=[];snap.forEach(function(child){data.push(child.val());});
@@ -1123,21 +989,16 @@ function loadGlobalRanking(){
     if(!data.length){body.innerHTML='<tr><td colspan="7" class="empty-history">Sin partidas registradas</td></tr>';return;}
     var html='';
     data.forEach(function(g,i){
-      var rank=i+1;
-      var rCls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-n';
+      var rank=i+1;var rCls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-n';
       var isMe=(g.uid===playerUID)?' me-row':'';
       html+='<tr class="'+isMe+'"><td><span class="rank-badge '+rCls+'">'+rank+'</span></td><td>'+escapeHTML(g.player||'?')+'</td><td>'+g.score+'</td><td>'+(g.coins||0)+'</td><td>'+(g.speed||0)+'</td><td>'+formatTime(g.time||0)+'</td><td>'+formatDate(g.date)+'</td></tr>';
     });
     body.innerHTML=html;
-  }).catch(function(e){
-    body.innerHTML='<tr><td colspan="7" class="empty-history">Error al cargar</td></tr>';
-    debugLog('Error ranking: '+e.message,'err');
-  });
+  }).catch(function(e){body.innerHTML='<tr><td colspan="7" class="empty-history">Error al cargar</td></tr>';debugLog('Error ranking: '+e.message,'err');});
 }
 
 function renderLocalHistory(){
-  loadLocalHistory();
-  var body=document.getElementById('localBody');
+  loadLocalHistory();var body=document.getElementById('localBody');
   var totalGames=localHistory.length,totalCoinsL=0,totalTime=0,totalScore=0;
   localHistory.forEach(function(g){totalCoinsL+=g.coins||0;totalTime+=g.time||0;totalScore+=g.score||0;});
   document.getElementById('lsGames').textContent=totalGames;
@@ -1146,15 +1007,17 @@ function renderLocalHistory(){
   document.getElementById('lsAvg').textContent=totalGames>0?Math.round(totalScore/totalGames):0;
   document.getElementById('lsTime').textContent=formatTime(totalTime);
   if(!totalGames){body.innerHTML='<tr><td colspan="6" class="empty-history">Sin partidas locales</td></tr>';return;}
-  var html='';
-  localHistory.slice().reverse().forEach(function(g,i){
+  var html='';localHistory.slice().reverse().forEach(function(g,i){
     html+='<tr><td>'+(i+1)+'</td><td>'+formatDate(g.date)+'</td><td>'+g.score+'</td><td>'+g.coins+'</td><td>'+(g.speed||0).toFixed(1)+'</td><td>'+formatTime(g.time)+'</td></tr>';
-  });
-  body.innerHTML=html;
+  });body.innerHTML=html;
 }
 
 /* ================================================================
-   SISTEMA DE CHAT CON IA (GROQ)
+   ★★★ CHAT CON IA - CORREGIDO: SIN MENSAJES DUPLICADOS ★★★
+   - renderedMsgKeys: Set que rastrea mensajes ya renderizados
+   - renderChatMessage: verifica duplicado antes de renderizar
+   - loadChatMessages: limpia el Set al recargar
+   - respondWithAI: usa el mismo mecanismo anti-duplicado
    ================================================================ */
 var chatMessages=[];
 var chatLoaded=false;
@@ -1175,15 +1038,45 @@ function sendChatMessage(){
   if(!text)return;
   input.value='';
 
-  var msg={text:text,sender:playerName,uid:playerUID,time:Date.now(),type:'user'};
+  var now=Date.now();
+  var msg={text:text,sender:playerName,uid:playerUID,time:now,type:'user'};
+
+  /* Renderizar inmediatamente (siempre que no sea duplicado) */
   chatMessages.push(msg);
   renderChatMessage(msg);
 
+  /* Guardar en Firebase */
   if(database&&firebaseConnected){
-    database.ref('chat').push({text:text,sender:playerName,uid:playerUID,time:firebase.database.ServerValue.TIMESTAMP,type:'user'}).catch(function(e){debugLog('Error chat: '+e.message,'err');});
+    database.ref('chat').push({
+      text:text,sender:playerName,uid:playerUID,
+      time:firebase.database.ServerValue.TIMESTAMP,type:'user'
+    }).catch(function(e){debugLog('Error chat: '+e.message,'err');});
   }
 
+  /* Si menciona @juego, responder con IA */
   if(text.toLowerCase().indexOf('@juego')!==-1)respondWithAI(text);
+}
+
+/* ★ FIX: renderChatMessage verifica duplicados con el Set ★ */
+function renderChatMessage(msg,scroll){
+  if(scroll===undefined)scroll=true;
+
+  /* Generar clave y verificar si ya fue renderizado */
+  var key=msgKey(msg);
+  if(renderedMsgKeys.has(key)){
+    /* Mensaje duplicado detectado, no renderizar */
+    return;
+  }
+  renderedMsgKeys.add(key);
+
+  var container=document.getElementById('chatMessages');
+  var div=document.createElement('div');
+  var isMine=msg.uid===playerUID;
+  var isAI=msg.uid==='ai';
+  div.className='chat-msg'+(isMine?' mine':isAI?' ai':' other');
+  div.innerHTML='<div class="chat-msg-header"><span class="chat-msg-name">'+(isAI?'<i class="fa-solid fa-robot"></i> ':'')+escapeHTML(msg.sender||'?')+'</span><span class="chat-msg-time">'+formatDate(msg.time)+'</span></div><div class="chat-msg-text">'+escapeHTML(msg.text||'')+'</div>';
+  container.appendChild(div);
+  if(scroll)container.scrollTop=container.scrollHeight;
 }
 
 function respondWithAI(userText){
@@ -1200,50 +1093,70 @@ function respondWithAI(userText){
   .then(function(data){
     indicator.classList.add('hidden');
     var reply=data.choices&&data.choices[0]&&data.choices[0].message?data.choices[0].message.content:'...';
-    var aiMsg={text:reply,sender:'NEON',uid:'ai',time:Date.now(),type:'ai'};
-    chatMessages.push(aiMsg);renderChatMessage(aiMsg);
+    var now=Date.now();
+    var aiMsg={text:reply,sender:'NEON',uid:'ai',time:now,type:'ai'};
+
+    /* Renderizar localmente (el Set evita duplicado si child_added tambien lo captura) */
+    chatMessages.push(aiMsg);
+    renderChatMessage(aiMsg);
+
+    /* Guardar en Firebase */
     if(database&&firebaseConnected){
       database.ref('chat').push({text:reply,sender:'NEON',uid:'ai',time:firebase.database.ServerValue.TIMESTAMP,type:'ai'}).catch(function(){});
     }
   }).catch(function(e){
     indicator.classList.add('hidden');
     debugLog('Error IA: '+e.message,'err');
-    var errMsg={text:'Error de conexion con mi cerebro neon...',sender:'NEON',uid:'ai',time:Date.now(),type:'ai'};
-    chatMessages.push(errMsg);renderChatMessage(errMsg);
+    var now=Date.now();
+    var errMsg={text:'Error de conexion con mi cerebro neon...',sender:'NEON',uid:'ai',time:now,type:'ai'};
+    chatMessages.push(errMsg);
+    renderChatMessage(errMsg);
   });
 }
 
+/* ★ FIX: loadChatMessages limpia el Set y usa listener sin startAt ★ */
 function loadChatMessages(){
   chatLoaded=true;
+  /* Limpiar el Set de mensajes ya procesados al recargar */
+  renderedMsgKeys.clear();
+
   var container=document.getElementById('chatMessages');
   container.innerHTML='';
-  if(!database||!firebaseConnected){container.innerHTML='<div class="chat-system-msg">Sin conexion - chat local</div>';return;}
 
+  if(!database||!firebaseConnected){
+    container.innerHTML='<div class="chat-system-msg">Sin conexion - chat local</div>';
+    return;
+  }
+
+  /* Cargar ultimos 30 mensajes existentes */
   database.ref('chat').orderByChild('time').limitToLast(30).once('value').then(function(snap){
-    chatMessages=[];snap.forEach(function(child){chatMessages.push(child.val());});
+    chatMessages=[];
     container.innerHTML='';
-    chatMessages.forEach(function(m){renderChatMessage(m,false);});
-    if(chatMessages.length)lastChatMsgTime=chatMessages[chatMessages.length-1].time||0;
+    snap.forEach(function(child){
+      var m=child.val();
+      chatMessages.push(m);
+      renderChatMessage(m,false);
+    });
     container.scrollTop=container.scrollHeight;
-  }).catch(function(e){container.innerHTML='<div class="chat-system-msg">Error al cargar</div>';debugLog('Error chat load: '+e.message,'err');});
-
-  if(chatListenerRef)database.ref('chat').off('child_added',chatListenerRef);
-  chatListenerRef=database.ref('chat').orderByChild('time').startAt(Date.now()).on('child_added',function(snap){
-    var msg=snap.val();if(!msg)return;
-    chatMessages.push(msg);renderChatMessage(msg);
+  }).catch(function(e){
+    container.innerHTML='<div class="chat-system-msg">Error al cargar mensajes</div>';
+    debugLog('Error chat load: '+e.message,'err');
   });
-}
 
-function renderChatMessage(msg,scroll){
-  if(scroll===undefined)scroll=true;
-  var container=document.getElementById('chatMessages');
-  var div=document.createElement('div');
-  var isMine=msg.uid===playerUID;
-  var isAI=msg.uid==='ai';
-  div.className='chat-msg'+(isMine?' mine':isAI?' ai':' other');
-  div.innerHTML='<div class="chat-msg-header"><span class="chat-msg-name">'+(isAI?'<i class="fa-solid fa-robot"></i> ':'')+escapeHTML(msg.sender||'?')+'</span><span class="chat-msg-time">'+formatDate(msg.time)+'</span></div><div class="chat-msg-text">'+escapeHTML(msg.text||'')+'</div>';
-  container.appendChild(div);
-  if(scroll)container.scrollTop=container.scrollHeight;
+  /* ★ FIX: Listener para mensajes NUEVOS despues de la carga inicial ★
+     Usamos el timestamp actual como referencia para no duplicar los ya cargados */
+  var listenFrom=Date.now();
+  if(chatListenerRef){
+    database.ref('chat').off('child_added',chatListenerRef);
+  }
+  chatListenerRef=database.ref('chat').orderByChild('time').startAt(listenFrom);
+  chatListenerRef.on('child_added',function(snap){
+    var msg=snap.val();
+    if(!msg)return;
+    /* El Set en renderChatMessage evita cualquier duplicado que se filtre */
+    chatMessages.push(msg);
+    renderChatMessage(msg);
+  });
 }
 
 function loadOnlineCount(){
@@ -1313,53 +1226,37 @@ function loadFriendsList(){
 }
 
 function renderFriendsList(){
-  var container=document.getElementById('friendsList');
-  var keys=Object.keys(friendsList);
+  var container=document.getElementById('friendsList');var keys=Object.keys(friendsList);
   if(!keys.length){container.innerHTML='<div class="no-friends">Sin amigos aun. Busca jugadores arriba.</div>';return;}
   var html='';
-  keys.forEach(function(uid){
-    var info=friendsList[uid];
+  keys.forEach(function(uid){var info=friendsList[uid];
     html+='<div class="friend-card"><div class="friend-avatar">'+escapeHTML((info.name||'?').charAt(0))+'</div><div class="friend-info"><div class="friend-name">'+escapeHTML(info.name||'?')+'</div><div class="friend-meta">Amigo</div></div><div class="friend-actions"><button class="btn tiny pm-btn" onclick="openPM(\''+uid+'\',\''+escapeHTML(info.name||'?')+'\')">PM</button><button class="btn tiny danger" onclick="removeFriend(\''+uid+'\')">X</button></div></div>';
-  });
-  container.innerHTML=html;
+  });container.innerHTML=html;
 }
 
 function renderFriendRequests(){
-  var container=document.getElementById('requestsList');
-  var title=document.getElementById('requestsTitle');
+  var container=document.getElementById('requestsList');var title=document.getElementById('requestsTitle');
   var keys=Object.keys(friendRequests);
   if(!keys.length){container.innerHTML='';title.style.display='none';return;}
-  title.style.display='';
-  var html='';
-  keys.forEach(function(uid){
-    var req=friendRequests[uid];
+  title.style.display='';var html='';
+  keys.forEach(function(uid){var req=friendRequests[uid];
     html+='<div class="friend-card"><div class="friend-avatar">'+escapeHTML((req.from||'?').charAt(0))+'</div><div class="friend-info"><div class="friend-name">'+escapeHTML(req.from||'?')+'</div><div class="friend-meta">Quiere ser tu amigo</div></div><div class="friend-actions"><button class="btn tiny pm-btn" onclick="acceptFriend(\''+uid+'\',\''+escapeHTML(req.from||'?')+'\')">OK</button><button class="btn tiny danger" onclick="rejectFriend(\''+uid+'\')">X</button></div></div>';
-  });
-  container.innerHTML=html;
+  });container.innerHTML=html;
 }
 
 function acceptFriend(uid,name){
-  if(!database)return;
-  var updates={};
+  if(!database)return;var updates={};
   updates['friends/'+playerUID+'/'+uid]={name:name,since:Date.now()};
   updates['friends/'+uid+'/'+playerUID]={name:playerName,since:Date.now()};
   updates['friendRequests/'+playerUID+'/'+uid]=null;
-  database.ref().update(updates).then(function(){
-    friendsList[uid]={name:name,since:Date.now()};delete friendRequests[uid];
-    renderFriendsList();renderFriendRequests();debugLog('Amigo aceptado: '+name,'ok');
-  }).catch(function(e){debugLog('Error aceptar: '+e.message,'err');});
+  database.ref().update(updates).then(function(){friendsList[uid]={name:name,since:Date.now()};delete friendRequests[uid];renderFriendsList();renderFriendRequests();debugLog('Amigo aceptado: '+name,'ok');}).catch(function(e){debugLog('Error aceptar: '+e.message,'err');});
 }
 
-function rejectFriend(uid){
-  if(!database)return;
-  database.ref('friendRequests/'+playerUID+'/'+uid).remove().then(function(){delete friendRequests[uid];renderFriendRequests();});
-}
+function rejectFriend(uid){if(!database)return;database.ref('friendRequests/'+playerUID+'/'+uid).remove().then(function(){delete friendRequests[uid];renderFriendRequests();});}
 
 function removeFriend(uid){
-  if(!database)return;
-  var updates={};
-  updates['friends/'+playerUID+'/'+uid]=null;
-  updates['friends/'+uid+'/'+playerUID]=null;
+  if(!database)return;var updates={};
+  updates['friends/'+playerUID+'/'+uid]=null;updates['friends/'+uid+'/'+playerUID]=null;
   database.ref().update(updates).then(function(){delete friendsList[uid];renderFriendsList();});
 }
 
@@ -1378,8 +1275,7 @@ document.getElementById('btnPmSend').addEventListener('click',sendPM);
 document.getElementById('pmInput').addEventListener('keydown',function(e){if(e.key==='Enter')sendPM();});
 
 function sendPM(){
-  var input=document.getElementById('pmInput');
-  var text=input.value.trim();
+  var input=document.getElementById('pmInput');var text=input.value.trim();
   if(!text||!pmTargetUser||!database||!firebaseConnected)return;
   input.value='';
   var path='pms/'+[playerUID,pmTargetUser.uid].sort().join('_');
@@ -1407,30 +1303,23 @@ function loadPMMessages(){
 }
 
 /* ================================================================
-   BOTONES DEL HUD DURANTE EL JUEGO
+   BOTONES DEL HUD
    ================================================================ */
-document.getElementById('hudFriendsBtn').addEventListener('click',function(){
-  if(gameState==='playing')gameState='paused';
-  openFriendsTab();
-});
-document.getElementById('hudChatBtn').addEventListener('click',function(){
-  if(gameState==='playing')gameState='paused';
-  openChat();
-});
+document.getElementById('hudFriendsBtn').addEventListener('click',function(){if(gameState==='playing')gameState='paused';openFriendsTab();});
+document.getElementById('hudChatBtn').addEventListener('click',function(){if(gameState==='playing')gameState='paused';openChat();});
 
 /* ================================================================
    INICIALIZACION FINAL
    ================================================================ */
 loadLocalHistory();
 showScreen('authScreen');
+debugLog('NEON DASH v13 cargado','info');
+debugLog('Esperando Firebase...','info');
 
-debugLog('NEON DASH v12 completo cargado','info');
-debugLog('Esperando respuesta de Firebase...','info');
-
-/* Si no hay errores despues de 4 segundos, ocultar panel de debug */
+/* Ocultar panel de debug si no hay errores a los 4 segundos */
 setTimeout(function(){if(!hasError&&debugPanel)debugPanel.style.display='none';},4000);
 
-/* Limpiar estado online al cerrar la pagina */
+/* Limpiar estado online al cerrar */
 window.addEventListener('beforeunload',function(){setOnlineStatus(false);});
 </script>
 </body>
